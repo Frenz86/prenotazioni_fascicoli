@@ -72,8 +72,11 @@ def load_data():
 
 def save_prenotazione(prenotazioni, new_prenotazione):
     """Salva una nuova prenotazione in Google Sheets."""
-    gc = gspread.service_account(filename='google_sa.json')
-    gsheetId = '150mxH0wbZmXp3cJMWRC1P5r5jjLYfX3rR0z7pFnB5TY'
+    #gc = gspread.service_account(filename='google_sa.json')
+    #gsheetId = 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'
+    # Initialize gspread with credentials
+    gc = gspread.service_account_from_dict(credentials)
+    gsheetId = st.secrets["gsheet_id"] 
     sh = gc.open_by_key(gsheetId)
     prenotazioni_w = sh.worksheet("prenotazioni")
     
