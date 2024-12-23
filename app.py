@@ -21,13 +21,11 @@ def login():
 
     logo = Image.open('FBS.jpg')
     if logo:
-        st.image(logo, use_container_width =True)
-
+        st.image(logo, width=600)
     st.title('Login Richieste Fascicoli')
     username = st.text_input('Username')
     password = st.text_input('Password', type='password')
     submit = st.button('Login', type="primary")
-
     if submit:
         if username == USER and password == PASSW:
             st.session_state.user_state['username'] = username
@@ -40,17 +38,17 @@ def login():
 
 ####################################################################################################
 credentials = {
-    "type": st.secrets["type"],
-    "project_id": st.secrets["project_id"],
-    "private_key_id": st.secrets["private_key_id"],
-    "private_key": st.secrets["private_key"],
-    "client_email": st.secrets["client_email"],
-    "client_id": st.secrets["client_id"],
-    "auth_uri": st.secrets["auth_uri"],
-    "token_uri": st.secrets["token_uri"],
-    "auth_provider_x509_cert_url": st.secrets["auth_provider_x509_cert_url"],
-    "client_x509_cert_url": st.secrets["client_x509_cert_url"]
-}
+                "type": st.secrets["type"],
+                "project_id": st.secrets["project_id"],
+                "private_key_id": st.secrets["private_key_id"],
+                "private_key": st.secrets["private_key"],
+                "client_email": st.secrets["client_email"],
+                "client_id": st.secrets["client_id"],
+                "auth_uri": st.secrets["auth_uri"],
+                "token_uri": st.secrets["token_uri"],
+                "auth_provider_x509_cert_url": st.secrets["auth_provider_x509_cert_url"],
+                "client_x509_cert_url": st.secrets["client_x509_cert_url"]
+                }
 
 @st.cache_data(ttl=20)  # Cache per 20 secondi
 def load_data():
@@ -110,11 +108,9 @@ def save_prenotazione(prenotazioni, new_prenotazione):
     for col in bool_columns:
         if col in prenotazioni_updated.columns:
             prenotazioni_updated[col] = prenotazioni_updated[col].astype(str).str.upper()
-    
     # Assicurati che tutti i valori siano compatibili con JSON
     for col in prenotazioni_updated.columns:
         prenotazioni_updated[col] = prenotazioni_updated[col].fillna('').astype(str)
-    
     # Converti il DataFrame in lista di liste per Google Sheets
     headers = required_columns
     values = prenotazioni_updated.values.tolist()    
