@@ -21,7 +21,7 @@ def login():
 
     logo = Image.open('FBS.jpg')
     if logo:
-        st.image(logo, use_column_width=True)
+        st.image(logo, use_container_width =True)
 
     st.title('Login Richieste Fascicoli')
     username = st.text_input('Username')
