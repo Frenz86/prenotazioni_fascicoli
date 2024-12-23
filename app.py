@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime
 import gspread
+from PIL import Image
 import time
 
 # USER = 'xxx'
@@ -17,6 +18,11 @@ if 'user_state' not in st.session_state:
                                     }
 def login():
     """Gestisce il login dell'utente."""
+
+    logo = Image.open('FBS.jpg')
+    if logo:
+        st.image(logo, use_column_width=True)
+
     st.title('Login')
     username = st.text_input('Username')
     password = st.text_input('Password', type='password')
