@@ -45,28 +45,27 @@ def load_google_sheets_data() -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame,
     """Load data from Google Sheets with caching"""
     try:
         credentials = {
-            "type": st.secrets["type"],
-            "project_id": st.secrets["project_id"],
-            "private_key_id": st.secrets["private_key_id"],
-            "private_key": st.secrets["private_key"],
-            "client_email": st.secrets["client_email"],
-            "client_id": st.secrets["client_id"],
-            "auth_uri": st.secrets["auth_uri"],
-            "token_uri": st.secrets["token_uri"],
-            "auth_provider_x509_cert_url": st.secrets["auth_provider_x509_cert_url"],
-            "client_x509_cert_url": st.secrets["client_x509_cert_url"]
-        }
+                        "type": st.secrets["type"],
+                        "project_id": st.secrets["project_id"],
+                        "private_key_id": st.secrets["private_key_id"],
+                        "private_key": st.secrets["private_key"],
+                        "client_email": st.secrets["client_email"],
+                        "client_id": st.secrets["client_id"],
+                        "auth_uri": st.secrets["auth_uri"],
+                        "token_uri": st.secrets["token_uri"],
+                        "auth_provider_x509_cert_url": st.secrets["auth_provider_x509_cert_url"],
+                        "client_x509_cert_url": st.secrets["client_x509_cert_url"]
+                        }
         gc = gspread.service_account_from_dict(credentials)
         sh = gc.open_by_key(st.secrets["gsheet_id"])
         
         # Get all worksheets data in parallel
         worksheets = {
-            "database": sh.worksheet("database"),
-            "prenotazioni": sh.worksheet("prenotazioni"),
-            "gestori": sh.worksheet("gestori"),
-            "centri_costo": sh.worksheet("centri_costo")
-        }
-        
+                    "database": sh.worksheet("database"),
+                    "prenotazioni": sh.worksheet("prenotazioni"),
+                    "gestori": sh.worksheet("gestori"),
+                    "centri_costo": sh.worksheet("centri_costo")
+                    }
         # Convert to DataFrames
         dfs = {name: pd.DataFrame(ws.get_all_records()) for name, ws in worksheets.items()}
         
