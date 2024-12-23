@@ -4,8 +4,10 @@ from datetime import datetime
 import gspread
 import time
 
-USER = 'fbs'
-PASSW = 'fbs2024'
+# USER = 'xxx'
+# PASSW = 'xxxxx'
+USER = st.secrets["USER"]
+PASSW = st.secrets["PASSW"]
 
 if 'user_state' not in st.session_state:
     st.session_state.user_state = {
@@ -310,7 +312,7 @@ def main():
     if not st.session_state.user_state['logged_in']:
         login()
     else:
-        main_app()
+        main_app() # richiamo il main dell'app
 
 if __name__ == "__main__":
     main()
