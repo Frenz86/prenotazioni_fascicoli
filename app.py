@@ -23,7 +23,7 @@ def login():
     if logo:
         st.image(logo, use_column_width=True)
 
-    st.title('Login')
+    st.title('Login Richieste Fascicoli')
     username = st.text_input('Username')
     password = st.text_input('Password', type='password')
     submit = st.button('Login', type="primary")
