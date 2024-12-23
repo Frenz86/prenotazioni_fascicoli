@@ -241,7 +241,14 @@ def main_app():
                 if not cognome:
                     st.markdown('<p class="required">Il cognome è obbligatorio</p>', 
                               unsafe_allow_html=True)
-            
+            with col1:
+                gestore = st.text_input("Gestore *", 
+                                   value=st.session_state.gestore,
+                                   key="gestore_input").strip()
+                st.session_state.gestore = gestore
+                if not gestore:
+                    st.markdown('<p class="required">Il Gestore è obbligatorio</p>', 
+                              unsafe_allow_html=True)
             # Selezione motivazione
             motivazioni = [
                             "azionare-posizione-consegna STA",
@@ -258,11 +265,10 @@ def main_app():
             if motivazione_selezionata in ["scansione documenti specifici", 
                                          "richiesta originali specifici"]:
                 note = st.text_area("Note aggiuntive", key="note")
-            # Bottone di prenotazione
             if st.button("Prenota Fascicolo"):
                 if ndg_selected and motivazione_selezionata:
-                    if not nome or not cognome:
-                        st.error("Nome e cognome sono campi obbligatori")
+                    if not nome or not cognome or not gestore:
+                        st.error("Nome Cognome e Gestore sono campi obbligatori")
                     else:
                         try:
                             # Crea la nuova prenotazione
