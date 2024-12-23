@@ -5,7 +5,35 @@ import gspread
 from PIL import Image
 import time
 
+# USER = 'xxx'
+# PASSW = 'xxxxx'
+USER = st.secrets["USER"]
+PASSW = st.secrets["PASSW"]
 
+if 'user_state' not in st.session_state:
+    st.session_state.user_state = {
+                                    'username': '',
+                                    'password': '',
+                                    'logged_in': False
+                                    }
+def login():
+    """Gestisce il login dell'utente."""
+    st.title('Login Richieste Fascicoli')
+    logo = Image.open('FBS.jpg')
+    if logo:
+        st.image(logo, width=600)
+    username = st.text_input('Username')
+    password = st.text_input('Password', type='password')
+    submit = st.button('Login', type="primary")
+    if submit:
+        if username == USER and password == PASSW:
+            st.session_state.user_state['username'] = username
+            st.session_state.user_state['password'] = password
+            st.session_state.user_state['logged_in'] = True
+            st.success('You are logged in')
+            st.rerun()
+        else:
+            st.error('Invalid username or password')
 
 ####################################################################################################
 credentials = {
@@ -151,10 +179,7 @@ def main_app():
                                                     options=[''] + portafogli,
                                                     index=0
                                                     )
-    if portafoglio_selezionato == '':
-        st.sidebar.markdown('<p class="required">La selezione del Portafoglio è obbligatoria</p>', 
-                          unsafe_allow_html=True)
-
+    
     ndg_list = get_ndg_list(df, portafoglio_selezionato if portafoglio_selezionato != '' else None)
     ndg_selected = st.sidebar.selectbox(
                                         "Seleziona NDG *",
@@ -164,25 +189,6 @@ def main_app():
     if ndg_selected == '':
         st.sidebar.markdown('<p class="required">La selezione del NDG è obbligatoria</p>', 
                           unsafe_allow_html=True)
-
-    # Selezione motivazione
-    motivazioni = [
-                    "azionare-posizione-consegna STA",
-                    "analisi documenti - scansione fascicolo",
-                    "scansione documenti specifici",
-                    "richiesta originali specifici"
-                    ]
-    motivazione_selezionata = st.sidebar.selectbox(
-                                                    "Motivazione Richiesta",
-                                                    options=[''] + motivazioni,
-                                                    index=0
-                                                    )
-
-    if motivazione_selezionata == '':
-        st.sidebar.markdown('<p class="required">La selezione della Motivazione è obbligatoria</p>', 
-                          unsafe_allow_html=True)
-
-#####################################################################################################################
 
     def handle_search():
         if ndg_selected == '':
@@ -245,7 +251,18 @@ def main_app():
                 if not gestore:
                     st.markdown('<p class="required">Il Gestore è obbligatorio</p>', 
                               unsafe_allow_html=True)
-
+            # Selezione motivazione
+            motivazioni = [
+                            "azionare-posizione-consegna STA",
+                            "analisi documenti - scansione fascicolo",
+                            "scansione documenti specifici",
+                            "richiesta originali specifici"
+                            ]
+            motivazione_selezionata = st.selectbox(
+                                                    "Motivazione Richiesta",
+                                                    options=[''] + motivazioni,
+                                                    index=0
+                                                    )
             note = ""
             if motivazione_selezionata in ["scansione documenti specifici", 
                                          "richiesta originali specifici"]:
@@ -301,5 +318,12 @@ def main_app():
                     - Totale fascicoli: {len(df)}
                     """)
 
+def main():
+    """Funzione principale dell'applicazione."""
+    if not st.session_state.user_state['logged_in']:
+        login()
+    else:
+        main_app() # richiamo il main dell'app
+
 if __name__ == "__main__":
-    main_app()
+    main()

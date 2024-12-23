@@ -179,7 +179,10 @@ def main_app():
                                                     options=[''] + portafogli,
                                                     index=0
                                                     )
-    
+    if portafoglio_selezionato == '':
+        st.sidebar.markdown('<p class="required">La selezione del Portafoglio è obbligatoria</p>', 
+                          unsafe_allow_html=True)
+
     ndg_list = get_ndg_list(df, portafoglio_selezionato if portafoglio_selezionato != '' else None)
     ndg_selected = st.sidebar.selectbox(
                                         "Seleziona NDG *",
@@ -189,6 +192,25 @@ def main_app():
     if ndg_selected == '':
         st.sidebar.markdown('<p class="required">La selezione del NDG è obbligatoria</p>', 
                           unsafe_allow_html=True)
+
+    # Selezione motivazione
+    motivazioni = [
+                    "azionare-posizione-consegna STA",
+                    "analisi documenti - scansione fascicolo",
+                    "scansione documenti specifici",
+                    "richiesta originali specifici"
+                    ]
+    motivazione_selezionata = st.sidebar.selectbox(
+                                                    "Motivazione Richiesta",
+                                                    options=[''] + motivazioni,
+                                                    index=0
+                                                    )
+
+    if motivazione_selezionata == '':
+        st.sidebar.markdown('<p class="required">La selezione della Motivazione è obbligatoria</p>', 
+                          unsafe_allow_html=True)
+
+#####################################################################################################################
 
     def handle_search():
         if ndg_selected == '':
@@ -251,18 +273,7 @@ def main_app():
                 if not gestore:
                     st.markdown('<p class="required">Il Gestore è obbligatorio</p>', 
                               unsafe_allow_html=True)
-            # Selezione motivazione
-            motivazioni = [
-                            "azionare-posizione-consegna STA",
-                            "analisi documenti - scansione fascicolo",
-                            "scansione documenti specifici",
-                            "richiesta originali specifici"
-                            ]
-            motivazione_selezionata = st.selectbox(
-                                                    "Motivazione Richiesta",
-                                                    options=[''] + motivazioni,
-                                                    index=0
-                                                    )
+
             note = ""
             if motivazione_selezionata in ["scansione documenti specifici", 
                                          "richiesta originali specifici"]:
