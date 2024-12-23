@@ -304,8 +304,8 @@ def main_app():
     st.sidebar.markdown("---")
     st.sidebar.subheader("Informazioni Database")
     st.sidebar.info(f"""
-                    - Totale fascicoli: {len(df)}
                     - Portafogli disponibili: {len(portafogli)}
+                    - Totale fascicoli: {len(df)}
                     """)
 
 def main():
