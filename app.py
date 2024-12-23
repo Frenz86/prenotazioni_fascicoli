@@ -91,7 +91,8 @@ def save_prenotazione(prenotazioni, new_prenotazione):
 
     required_columns = [
                         'PORTAFOGLIO','NDG', 'MOTIVAZIONE_RICHIESTA', 'DATA_RICHIESTA',
-                        'PRENOTATO', 'RESTITUITO','DATA_EVASIONE','DATA_RESTITUZIONE','NOME_RICHIEDENTE', 'COGNOME_RICHIEDENTE','NOTE','DISPONIBILE'
+                        'PRENOTATO', 'RESTITUITO','DATA_EVASIONE','DATA_RESTITUZIONE','NOME_RICHIEDENTE', 'COGNOME_RICHIEDENTE','GESTORE','NOTE','DISPONIBILE',
+                        
                         ]
     
     prenotazioni_filtered = prenotazioni[required_columns].copy() if len(prenotazioni) > 0 else pd.DataFrame(columns=required_columns)
@@ -155,7 +156,8 @@ def main_app():
         st.session_state.nome = ""
     if 'cognome' not in st.session_state:
         st.session_state.cognome = ""
-
+    if 'gestore' not in st.session_state:
+        st.session_state.gestore = ""
     try:
         database, prenotazioni = load_data()        
         df = database.merge(prenotazioni, on=['NDG', 'PORTAFOGLIO'], how='left', indicator=True)
@@ -285,6 +287,7 @@ def main_app():
                                                 'DATA_RESTITUZIONE': row['DATA_RESTITUZIONE'],
                                                 'NOME_RICHIEDENTE': nome,
                                                 'COGNOME_RICHIEDENTE': cognome,
+                                                'GESTORE': gestore,
                                                 'DISPONIBILE': False,
                                             }
                             prenotazioni = save_prenotazione(prenotazioni, new_prenotazione)                            
@@ -293,6 +296,7 @@ def main_app():
                             st.session_state.search_clicked = False
                             st.session_state.nome = ""
                             st.session_state.cognome = ""
+                            st.session_state.gestore = ""
                             st.success('Richiesta inoltrata')
                             st.balloons()
                             st.rerun()
