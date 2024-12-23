@@ -58,10 +58,10 @@ def load_data():
     gc = gspread.service_account_from_dict(credentials)
     gsheetId = st.secrets["gsheet_id"] 
     sh = gc.open_by_key(gsheetId)
-    
     # Get worksheets
     database_w = sh.worksheet("database")
     prenotazioni_w = sh.worksheet("prenotazioni")
+    gestori_w = sh.worksheet("gestori")
     # Load data
     database = pd.DataFrame(database_w.get_all_records())
     prenotazioni = pd.DataFrame(prenotazioni_w.get_all_records())
@@ -72,8 +72,9 @@ def load_data():
             prenotazioni[col] = prenotazioni[col].map({'TRUE': True, 'FALSE': False})
     # Set PRENOTATO to False when RESTITUITO is True
     prenotazioni.loc[prenotazioni['RESTITUITO'] == True, 'PRENOTATO'] = False
-    
-    return database, prenotazioni
+    # Load data
+    gestori = pd.DataFrame(gestori_w.get_all_records())    
+    return database, prenotazioni, gestori
 
 def save_prenotazione(prenotazioni, new_prenotazione):
     """Salva una nuova prenotazione in Google Sheets."""
@@ -156,10 +157,8 @@ def main_app():
         st.session_state.nome = ""
     if 'cognome' not in st.session_state:
         st.session_state.cognome = ""
-    if 'gestore' not in st.session_state:
-        st.session_state.gestore = ""
     try:
-        database, prenotazioni = load_data()        
+        database, prenotazioni,gestori = load_data()        
         df = database.merge(prenotazioni, on=['NDG', 'PORTAFOGLIO'], how='left', indicator=True)
         df['PRENOTATO'] = df['PRENOTATO'].fillna(False)
         df['DISPONIBILE'] = 1-df['PRENOTATO'] #negato
@@ -179,7 +178,10 @@ def main_app():
                                                     options=[''] + portafogli,
                                                     index=0
                                                     )
-    
+    if portafoglio_selezionato == '':
+        st.sidebar.markdown('<p class="required">La selezione del Portafoglio è obbligatoria</p>', 
+                          unsafe_allow_html=True)
+
     ndg_list = get_ndg_list(df, portafoglio_selezionato if portafoglio_selezionato != '' else None)
     ndg_selected = st.sidebar.selectbox(
                                         "Seleziona NDG *",
@@ -189,6 +191,25 @@ def main_app():
     if ndg_selected == '':
         st.sidebar.markdown('<p class="required">La selezione del NDG è obbligatoria</p>', 
                           unsafe_allow_html=True)
+
+    # Selezione motivazione
+    motivazioni = [
+                    "azionare-posizione-consegna STA",
+                    "analisi documenti - scansione fascicolo",
+                    "scansione documenti specifici",
+                    "richiesta originali specifici"
+                    ]
+    motivazione_selezionata = st.sidebar.selectbox(
+                                                    "Motivazione Richiesta",
+                                                    options=[''] + motivazioni,
+                                                    index=0
+                                                    )
+
+    if motivazione_selezionata == '':
+        st.sidebar.markdown('<p class="required">La selezione della Motivazione è obbligatoria</p>', 
+                          unsafe_allow_html=True)
+
+#####################################################################################################################
 
     def handle_search():
         if ndg_selected == '':
@@ -244,33 +265,24 @@ def main_app():
                     st.markdown('<p class="required">Il cognome è obbligatorio</p>', 
                               unsafe_allow_html=True)
             with col1:
-                gestore = st.text_input("Gestore *", 
-                                   value=st.session_state.gestore,
-                                   key="gestore_input").strip()
-                st.session_state.gestore = gestore
-                if not gestore:
+                gestore_list = sorted(gestori['NOME_VIS'].unique())
+                gestore_selezionato = st.selectbox(
+                                            "Seleziona Gestore *",
+                                            options=[''] + gestore_list,
+                                            index=0
+                                            )
+                if gestore_selezionato == '':
                     st.markdown('<p class="required">Il Gestore è obbligatorio</p>', 
-                              unsafe_allow_html=True)
-            # Selezione motivazione
-            motivazioni = [
-                            "azionare-posizione-consegna STA",
-                            "analisi documenti - scansione fascicolo",
-                            "scansione documenti specifici",
-                            "richiesta originali specifici"
-                            ]
-            motivazione_selezionata = st.selectbox(
-                                                    "Motivazione Richiesta",
-                                                    options=[''] + motivazioni,
-                                                    index=0
-                                                    )
+                                    unsafe_allow_html=True)
+
             note = ""
             if motivazione_selezionata in ["scansione documenti specifici", 
                                          "richiesta originali specifici"]:
                 note = st.text_area("Note aggiuntive", key="note")
             if st.button("Prenota Fascicolo"):
                 if ndg_selected and motivazione_selezionata:
-                    if not nome or not cognome or not gestore:
-                        st.error("Nome Cognome e Gestore sono campi obbligatori")
+                    if not nome or not cognome or not gestore_selezionato:
+                        st.error("Nome Cognome e Gestore sonoe campi obbligatori")
                     else:
                         try:
                             # Crea la nuova prenotazione
@@ -287,7 +299,7 @@ def main_app():
                                                 'DATA_RESTITUZIONE': row['DATA_RESTITUZIONE'],
                                                 'NOME_RICHIEDENTE': nome,
                                                 'COGNOME_RICHIEDENTE': cognome,
-                                                'GESTORE': gestore,
+                                                'GESTORE': gestore_selezionato,
                                                 'DISPONIBILE': False,
                                             }
                             prenotazioni = save_prenotazione(prenotazioni, new_prenotazione)                            

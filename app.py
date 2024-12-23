@@ -52,9 +52,6 @@ credentials = {
 @st.cache_data(ttl=20)  # Cache per 20 secondi
 def load_data():
     """Carica i dati da Google Sheets."""
-    #gc = gspread.service_account(filename='google_sa.json')
-    #gsheetId = 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'
-    # Initialize gspread with credentials
     gc = gspread.service_account_from_dict(credentials)
     gsheetId = st.secrets["gsheet_id"] 
     sh = gc.open_by_key(gsheetId)
@@ -70,53 +67,43 @@ def load_data():
     for col in bool_columns:
         if col in prenotazioni.columns:
             prenotazioni[col] = prenotazioni[col].map({'TRUE': True, 'FALSE': False})
-    # Set PRENOTATO to False when RESTITUITO is True
-    prenotazioni.loc[prenotazioni['RESTITUITO'] == True, 'PRENOTATO'] = False
-    # Load data
+    
+    # Filter out returned items
+    prenotazioni = prenotazioni[prenotazioni['RESTITUITO'] != True]
+    
+    # Load gestori data
     gestori = pd.DataFrame(gestori_w.get_all_records())    
     return database, prenotazioni, gestori
 
 def save_prenotazione(prenotazioni, new_prenotazione):
-    """Salva una nuova prenotazione in Google Sheets."""
-    #gc = gspread.service_account(filename='google_sa.json')
-    #gsheetId = 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'
-    # Initialize gspread with credentials
+    """Salva una nuova prenotazione in Google Sheets aggiungendo una nuova riga."""
     gc = gspread.service_account_from_dict(credentials)
     gsheetId = st.secrets["gsheet_id"] 
     sh = gc.open_by_key(gsheetId)
     prenotazioni_w = sh.worksheet("prenotazioni")
     
+    # Converti i valori booleani in stringhe
     for key in ['PRENOTATO', 'RESTITUITO', 'DISPONIBILE']:
         if key in new_prenotazione:
             new_prenotazione[key] = str(new_prenotazione[key]).upper()
 
     required_columns = [
-                        'PORTAFOGLIO','NDG', 'MOTIVAZIONE_RICHIESTA', 'DATA_RICHIESTA',
-                        'PRENOTATO', 'RESTITUITO','DATA_EVASIONE','DATA_RESTITUZIONE','NOME_RICHIEDENTE', 'COGNOME_RICHIEDENTE','GESTORE','NOTE','DISPONIBILE',
-                        
-                        ]
+        'PORTAFOGLIO', 'NDG', 'MOTIVAZIONE_RICHIESTA', 'DATA_RICHIESTA',
+        'PRENOTATO', 'RESTITUITO', 'DATA_EVASIONE', 'DATA_RESTITUZIONE',
+        'NOME_RICHIEDENTE', 'COGNOME_RICHIEDENTE', 'GESTORE', 'NOTE', 'DISPONIBILE'
+    ]
     
-    prenotazioni_filtered = prenotazioni[required_columns].copy() if len(prenotazioni) > 0 else pd.DataFrame(columns=required_columns)
-    new_record = {k: v for k, v in new_prenotazione.items() if k in required_columns}
-    new_df = pd.DataFrame([new_record])
+    # Prepara la nuova riga da aggiungere
+    new_row = [str(new_prenotazione.get(col, '')) for col in required_columns]
     
-    # Aggiungi la nuova prenotazione al DataFrame filtrato
-    prenotazioni_updated = pd.concat([prenotazioni_filtered, new_df], ignore_index=True)
-    prenotazioni_updated = prenotazioni_updated.drop_duplicates(subset=['NDG', 'PORTAFOGLIO'], keep='last')
+    # Aggiungi la nuova riga al foglio
+    prenotazioni_w.append_row(new_row)
     
-    # Converti i valori booleani in stringa nel DataFrame completo
-    bool_columns = ['PRENOTATO', 'RESTITUITO']
-    for col in bool_columns:
-        if col in prenotazioni_updated.columns:
-            prenotazioni_updated[col] = prenotazioni_updated[col].astype(str).str.upper()
-    # Assicurati che tutti i valori siano compatibili con JSON
-    for col in prenotazioni_updated.columns:
-        prenotazioni_updated[col] = prenotazioni_updated[col].fillna('').astype(str)
-    # Converti il DataFrame in lista di liste per Google Sheets
-    headers = required_columns
-    values = prenotazioni_updated.values.tolist()    
-    prenotazioni_w.clear()
-    prenotazioni_w.update([headers] + values)
+    # Aggiorna il DataFrame delle prenotazioni aggiungendo la nuova riga
+    new_df = pd.DataFrame([new_prenotazione])
+    prenotazioni_updated = pd.concat([prenotazioni, new_df], ignore_index=True)
+    
+    # Pulisci la cache per forzare il ricaricamento dei dati
     load_data.clear()
     
     return prenotazioni_updated
@@ -158,13 +145,17 @@ def main_app():
     if 'cognome' not in st.session_state:
         st.session_state.cognome = ""
     try:
-        database, prenotazioni,gestori = load_data()        
+        database, prenotazioni, gestori = load_data()        
         df = database.merge(prenotazioni, on=['NDG', 'PORTAFOGLIO'], how='left', indicator=True)
         df['PRENOTATO'] = df['PRENOTATO'].fillna(False)
-        df['DISPONIBILE'] = 1-df['PRENOTATO'] #negato
+        
+        # Modify the availability logic to consider only non-returned items
+        active_prenotations = prenotazioni[prenotazioni['RESTITUITO'] != True]
+        df['DISPONIBILE'] = ~df['NDG'].astype(str).isin(active_prenotations['NDG'].astype(str))
+        
         df = df[df['DISPONIBILE'] == True]
         
-        # Rimuovi le colonne duplicate e di debug
+        # Remove duplicate columns and debug columns
         columns_to_drop = [col for col in df.columns if col.endswith('_y')] + ['_merge']
         df = df.drop(columns=columns_to_drop)
     except Exception as e:
