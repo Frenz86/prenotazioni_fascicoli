@@ -18,11 +18,10 @@ if 'user_state' not in st.session_state:
                                     }
 def login():
     """Gestisce il login dell'utente."""
-
+    st.title('Login Richieste Fascicoli')
     logo = Image.open('FBS.jpg')
     if logo:
         st.image(logo, width=600)
-    st.title('Login Richieste Fascicoli')
     username = st.text_input('Username')
     password = st.text_input('Password', type='password')
     submit = st.button('Login', type="primary")
