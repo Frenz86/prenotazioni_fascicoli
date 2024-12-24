@@ -48,7 +48,7 @@ def render_search_filters(df: pd.DataFrame, centri_costo: pd.DataFrame) -> Tuple
                                         index=0
                                         )
     if not portafoglio:
-        st.sidebar.markdown('<p class="required">⚠️ La selezione del Portafoglio è obbligatoria</p>', 
+        st.sidebar.markdown('<p class="required">⚠️ La selezione del Portafoglio è obbligatoria</p>',  
                           unsafe_allow_html=True)
     
     # Centro di Costo selection
