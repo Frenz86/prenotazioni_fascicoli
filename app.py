@@ -3,41 +3,124 @@ import pandas as pd
 from datetime import datetime
 import gspread
 from PIL import Image
-from typing import Tuple, Dict, List
+from typing import Tuple, Dict
 from dataclasses import dataclass
+
+# Add CSS for required field styling
+st.markdown("""
+<style>
+.required {
+    color: red !important;
+    font-size: 0.8em;
+    margin-top: 0.2em;
+}
+</style>
+""", unsafe_allow_html=True)
 
 # Configuration
 @dataclass
 class Config:
     REQUIRED_COLUMNS = [
-        'PORTAFOGLIO', 'NDG', 'MOTIVAZIONE_RICHIESTA', 'DATA_RICHIESTA',
-        'PRENOTATO', 'RESTITUITO', 'DATA_EVASIONE', 'DATA_RESTITUZIONE',
-        'NOME_RICHIEDENTE', 'COGNOME_RICHIEDENTE', 'GESTORE', 'NOTE', 'DISPONIBILE',
-        'CENTRO_COSTO', 'PORTAFOGLIO_CC', 'INTESTAZIONE'
-    ]
+                        'PORTAFOGLIO', 'NDG', 'MOTIVAZIONE_RICHIESTA', 'DATA_RICHIESTA',
+                        'PRENOTATO', 'RESTITUITO', 'DATA_EVASIONE', 'DATA_RESTITUZIONE',
+                        'NOME_RICHIEDENTE', 'COGNOME_RICHIEDENTE', 'GESTORE', 'NOTE', 'DISPONIBILE',
+                        'CENTRO_COSTO', 'PORTAFOGLIO_CC', 'INTESTAZIONE'
+                        ]
     MOTIVAZIONI = [
-        "azionare-posizione-consegna STA",
-        "analisi documenti - scansione fascicolo",
-        "scansione documenti specifici",
-        "richiesta originali specifici"
-    ]
+                    "azionare-posizione-consegna STA",
+                    "analisi documenti - scansione fascicolo",
+                    "scansione documenti specifici",
+                    "richiesta originali specifici"
+                    ]
     BOOL_COLUMNS = ['PRENOTATO', 'RESTITUITO', 'DISPONIBILE']
 
-# State Management
-def init_session_state():
-    """Initialize session state variables"""
-    if 'user_state' not in st.session_state:
-        st.session_state.user_state = {
-            'username': '',
-            'password': '',
-            'logged_in': False
-        }
-    if 'search_clicked' not in st.session_state:
-        st.session_state.search_clicked = False
-    if 'nome' not in st.session_state:
-        st.session_state.nome = ""
-    if 'cognome' not in st.session_state:
-        st.session_state.cognome = ""
+# Rest of your code remains the same until the render_search_filters function
+
+def render_search_filters(df: pd.DataFrame, centri_costo: pd.DataFrame) -> Tuple[str, str, str, str]:
+    """Render search filters in sidebar"""
+    st.sidebar.header("Filtri di Ricerca")
+    
+    # Portafoglio selection
+    portafogli_list = sorted(df['PORTAFOGLIO'].unique())
+    portafoglio = st.sidebar.selectbox(
+                                        "Seleziona Portafoglio *",
+                                        options=[''] + portafogli_list,
+                                        index=0
+                                        )
+    if not portafoglio:
+        st.sidebar.markdown('<p class="required">⚠️ La selezione del Portafoglio è obbligatoria</p>', 
+                          unsafe_allow_html=True)
+    
+    # Centro di Costo selection
+    centri_costo_list = sorted(centri_costo['CENTRO_COSTO'].unique())
+    centro_costo = st.sidebar.selectbox(
+                                        "Seleziona Centro di Costo *",
+                                        options=[''] + centri_costo_list,
+                                        index=0
+                                        )
+    if not centro_costo:
+        st.sidebar.markdown('<p class="required">⚠️ La selezione del centro di costo è obbligatoria</p>', 
+                          unsafe_allow_html=True)
+    
+    # NDG selection
+    ndg_list = sorted(df['NDG'].unique().astype(str)) if not portafoglio else \
+               sorted(df[df['PORTAFOGLIO'] == portafoglio]['NDG'].unique().astype(str))
+    ndg = st.sidebar.selectbox(
+                                "Seleziona NDG *",
+                                options=[''] + ndg_list,
+                                index=0
+                                )
+    if not ndg:
+        st.sidebar.markdown('<p class="required">⚠️ La selezione del NDG è obbligatoria</p>', 
+                          unsafe_allow_html=True)
+    
+    # Motivazione selection
+    motivazione = st.sidebar.selectbox(
+                                        "Motivazione Richiesta *",
+                                        options=[''] + Config.MOTIVAZIONI,
+                                        index=0
+                                        )
+    if not motivazione:
+        st.sidebar.markdown('<p class="required">⚠️ La selezione della Motivazione è obbligatoria</p>', 
+                          unsafe_allow_html=True)
+    
+    return portafoglio, centro_costo, ndg, motivazione
+
+def render_booking_form(gestori: pd.DataFrame) -> Tuple[str, str, str, str]:
+    """Render booking form and return input values"""
+    st.markdown("### Informazioni Richiedente")
+    st.markdown('<p style="color: red;">I campi contrassegnati con * sono obbligatori</p>', unsafe_allow_html=True)
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        nome = st.text_input("Nome *", 
+                           value=st.session_state.nome,
+                           key="nome_input").strip()
+        if not nome:
+            st.markdown('<p class="required">⚠️ Il nome è obbligatorio</p>', 
+                      unsafe_allow_html=True)
+    
+    with col2:
+        cognome = st.text_input("Cognome *", 
+                              value=st.session_state.cognome,
+                              key="cognome_input").strip()
+        if not cognome:
+            st.markdown('<p class="required">⚠️ Il cognome è obbligatorio</p>', 
+                      unsafe_allow_html=True)
+    
+    with col1:
+        gestore_list = sorted(gestori['NOME_VIS'].unique())
+        gestore = st.selectbox(
+            "Seleziona Gestore *",
+            options=[''] + gestore_list,
+            index=0
+        )
+        if not gestore:
+            st.markdown('<p class="required">⚠️ Il Gestore è obbligatorio</p>', 
+                      unsafe_allow_html=True)
+    
+    return nome, cognome, gestore
 
 # Data Loading and Processing
 @st.cache_data(ttl=45)
@@ -144,64 +227,22 @@ def render_login_page():
         else:
             st.error('Username o password non validi')
 
-def render_search_filters(df: pd.DataFrame, centri_costo: pd.DataFrame) -> Tuple[str, str, str, str]:
-    """Render search filters in sidebar"""
-    st.sidebar.header("Filtri di Ricerca")
-    
-    # Portafoglio selection
-    portafogli_list = sorted(df['PORTAFOGLIO'].unique())
-    portafoglio = st.sidebar.selectbox(
-                                        "Seleziona Portafoglio *",
-                                        options=[''] + portafogli_list,
-                                        index=0
-                                        )
-    if not portafoglio:
-        st.sidebar.markdown('<p class="required">La selezione del Portafoglio è obbligatoria</p>', 
-                          unsafe_allow_html=True)
-    
-    # Centro di Costo selection
-    centri_costo_list = sorted(centri_costo['CENTRO_COSTO'].unique())
-    centro_costo = st.sidebar.selectbox(
-                                        "Seleziona Centro di Costo *",
-                                        options=[''] + centri_costo_list,
-                                        index=0
-                                        )
-    if not centro_costo:
-        st.sidebar.markdown('<p class="required">La selezione del centro di costo è obbligatoria</p>', 
-                          unsafe_allow_html=True)
-    
-    # NDG selection
-    ndg_list = sorted(df['NDG'].unique().astype(str)) if not portafoglio else \
-               sorted(df[df['PORTAFOGLIO'] == portafoglio]['NDG'].unique().astype(str))
-    ndg = st.sidebar.selectbox(
-                                "Seleziona NDG *",
-                                options=[''] + ndg_list,
-                                index=0
-                                )
-    if not ndg:
-        st.sidebar.markdown('<p class="required">La selezione del NDG è obbligatoria</p>', 
-                          unsafe_allow_html=True)
-    
-    # Motivazione selection
-    motivazione = st.sidebar.selectbox(
-                                        "Motivazione Richiesta *",
-                                        options=[''] + Config.MOTIVAZIONI,
-                                        index=0
-                                        )
-    if not motivazione:
-        st.sidebar.markdown('<p class="required">La selezione della Motivazione è obbligatoria</p>', 
-                          unsafe_allow_html=True)
-    
-    return portafoglio, centro_costo, ndg, motivazione
+# State Management
+def init_session_state():
+    """Initialize session state variables"""
+    if 'user_state' not in st.session_state:
+        st.session_state.user_state = {
+            'username': '',
+            'password': '',
+            'logged_in': False
+        }
+    if 'search_clicked' not in st.session_state:
+        st.session_state.search_clicked = False
+    if 'nome' not in st.session_state:
+        st.session_state.nome = ""
+    if 'cognome' not in st.session_state:
+        st.session_state.cognome = ""
 
-def render_result_card(row: pd.Series):
-    """Render a card with search result information"""
-    st.markdown(f"""
-        <div style='color: #87CEEB'>
-            <h5>Portafoglio: {row['PORTAFOGLIO']} - NDG: {row['NDG']} - Intestazione: {row['INTESTAZIONE']}</h5>
-            <h5>Numero Scatola: {row['NUMERO_SCATOLA']} - ID_CREDITLINE: {row['ID_CREDITLINE']} - Tipologia Documento: {row['TIPOLOGIA_DOCUMENTO']}</h5>
-        </div>
-    """, unsafe_allow_html=True)
 
 def render_booking_form(gestori: pd.DataFrame) -> Tuple[str, str, str, str]:
     """Render booking form and return input values"""
@@ -238,6 +279,15 @@ def render_booking_form(gestori: pd.DataFrame) -> Tuple[str, str, str, str]:
                       unsafe_allow_html=True)
     
     return nome, cognome, gestore
+
+def render_result_card(row: pd.Series):
+    """Render a card with search result information"""
+    st.markdown(f"""
+        <div style='color: #87CEEB'>
+            <h5>Portafoglio: {row['PORTAFOGLIO']} - NDG: {row['NDG']} - Intestazione: {row['INTESTAZIONE']}</h5>
+            <h5>Numero Scatola: {row['NUMERO_SCATOLA']} - ID_CREDITLINE: {row['ID_CREDITLINE']} - Tipologia Documento: {row['TIPOLOGIA_DOCUMENTO']}</h5>
+        </div>
+    """, unsafe_allow_html=True)
 
 def main():
     """Main application function"""
@@ -370,9 +420,9 @@ def main():
     st.sidebar.markdown("---")
     st.sidebar.subheader("Informazioni Database")
     st.sidebar.info(f"""
-        - Portafogli disponibili: {len(df['PORTAFOGLIO'].unique())}
-        - Totale fascicoli: {len(df)}
-    """)
+                    - Portafogli disponibili: {len(df['PORTAFOGLIO'].unique())}
+                    - Totale fascicoli: {len(df)}
+                    """)
 
 if __name__ == "__main__":
     main()
