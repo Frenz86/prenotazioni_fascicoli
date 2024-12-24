@@ -74,12 +74,13 @@ def render_search_filters(df: pd.DataFrame, centri_costo: pd.DataFrame) -> Tuple
         st.sidebar.markdown('<p class="required">⚠️ La selezione del NDG è obbligatoria</p>', 
                           unsafe_allow_html=True)
     
-    # Motivazione selection
+    # Modified Motivazione selection
     motivazione = st.sidebar.selectbox(
                                         "Motivazione Richiesta *",
                                         options=[''] + Config.MOTIVAZIONI,
-                                        index=0
-                                        )
+                                        index=0,
+                                        key="motivazione_selectbox" 
+                                    )
     if not motivazione:
         st.sidebar.markdown('<p class="required">⚠️ La selezione della Motivazione è obbligatoria</p>', 
                           unsafe_allow_html=True)
