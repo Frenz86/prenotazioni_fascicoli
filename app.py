@@ -6,6 +6,14 @@ from PIL import Image
 from typing import Tuple, Dict
 from dataclasses import dataclass
 
+
+st.set_page_config(
+                    page_title="FBS - Richieste Fascicoli",
+                    page_icon=Image.open("img/FBS.jpg"),
+                    #layout="wide",
+                    )
+
+
 # Add CSS for required field styling
 st.markdown("""
 <style>
@@ -208,7 +216,7 @@ def render_login_page():
     """Render login page"""
     st.title('Login Richieste Fascicoli')
     try:
-        logo = Image.open('FBS.jpg')
+        logo = Image.open('img/FBS.jpg')
         st.image(logo, width=600)
     except Exception:
         st.warning("Logo non trovato")
