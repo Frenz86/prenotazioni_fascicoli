@@ -111,6 +111,7 @@ def render_booking_form(gestori: pd.DataFrame) -> str:
     
     return gestore
 
+
 @st.cache_data(ttl=45)
 def load_google_sheets_data() -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     try:
