@@ -5,7 +5,6 @@ import gspread
 from PIL import Image
 from typing import Tuple, Dict
 from dataclasses import dataclass
-import time
 
 st.set_page_config(
                     page_title="FBS - Richieste Fascicoli",
@@ -114,7 +113,7 @@ def render_booking_form(gestori: pd.DataFrame) -> str:
 
 
 @st.cache_data(ttl=45)
-def load_google_sheets_data() -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+def load_google_sheets_data() -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     try:
         credentials = {
                         "type": st.secrets["type"],
@@ -139,11 +138,9 @@ def load_google_sheets_data() -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]
                     }
         dfs = {name: pd.DataFrame(ws.get_all_records()) for name, ws in worksheets.items()}
         
-        # Improved boolean conversion
         for col in Config.BOOL_COLUMNS:
             if col in dfs['prenotazioni'].columns:
-                dfs['prenotazioni'][col] = dfs['prenotazioni'][col].astype(str).str.upper().map({'TRUE': True, 'FALSE': False})
-        
+                dfs['prenotazioni'][col] = dfs['prenotazioni'][col].map({'TRUE': True, 'FALSE': False})
         return dfs['database'], dfs['prenotazioni'], dfs['gestori']
     
     except Exception as e:
@@ -178,8 +175,6 @@ def save_prenotazione(prenotazioni: pd.DataFrame, new_prenotazione: Dict) -> pd.
         new_df = pd.DataFrame([new_prenotazione])
         updated_prenotazioni = pd.concat([prenotazioni, new_df], ignore_index=True)
         
-        # Clear cache to ensure fresh data load
-        st.success("Prenotazione salvata, aggiornamento dati in corso...")
         load_google_sheets_data.clear()
         
         return updated_prenotazioni
@@ -219,8 +214,6 @@ def init_session_state():
                                         }
     if 'search_clicked' not in st.session_state:
         st.session_state.search_clicked = False
-    if 'last_data_load' not in st.session_state:
-        st.session_state.last_data_load = 0
 
 def render_result_card(row: pd.Series):
     st.markdown(f"""
@@ -241,42 +234,22 @@ def main():
 
     if st.sidebar.button("🔄 Ricarica Dati"):
         load_google_sheets_data.clear()
-        st.session_state.last_data_load = time.time()
         st.rerun()
-    
-    # Force refresh data if it's been more than 10 seconds
-    current_time = time.time()
-    if current_time - st.session_state.last_data_load > 10:
-        load_google_sheets_data.clear()
-        st.session_state.last_data_load = current_time
     
     try:
         database, prenotazioni, gestori = load_google_sheets_data()
     except Exception:
         return
     
-    # Create debug expander to view current data
-    with st.sidebar.expander("Debug Info", expanded=False):
-        st.write(f"Data last refreshed: {st.session_state.last_data_load}")
-        st.write(f"Total prenotations: {len(prenotazioni)}")
-        st.write(f"Non-returned prenotations: {len(prenotazioni[~prenotazioni['RESTITUITO']])}")
-    
+    active_prenotations = prenotazioni[~prenotazioni['RESTITUITO']].copy()
     df = database.copy()
     df['DISPONIBILE'] = True
     
-    # Get fresh active prenotations
-    active_prenotations = prenotazioni[~prenotazioni['RESTITUITO']].copy()
-    
-    # Generate check_keys for all active prenotations
     if not active_prenotations.empty:
         active_prenotations['check_key'] = active_prenotations.apply(
-            lambda x: f"{str(x['NDG'])}_{str(x['PORTAFOGLIO'])}_{str(x['MOTIVAZIONE_RICHIESTA'])}", 
-            axis=1
-        )
-        
-        # Debug check keys
-        with st.sidebar.expander("Active Prenotations", expanded=False):
-            st.write(active_prenotations[['NDG', 'PORTAFOGLIO', 'MOTIVAZIONE_RICHIESTA', 'check_key']])
+                                                                    lambda x: f"{x['NDG']}_{x['PORTAFOGLIO']}_{x['MOTIVAZIONE_RICHIESTA']}", 
+                                                                    axis=1
+                                                                    )
     
     portafoglio, ndg, motivazione = render_search_filters(df)
     
@@ -284,18 +257,6 @@ def main():
         if not ndg:
             st.sidebar.error("Devi selezionare un NDG prima di cercare")
             return
-        
-        # Force reload data to ensure we have the latest prenotations
-        load_google_sheets_data.clear()
-        database, prenotazioni, gestori = load_google_sheets_data()
-        active_prenotations = prenotazioni[~prenotazioni['RESTITUITO']].copy()
-        
-        if not active_prenotations.empty:
-            active_prenotations['check_key'] = active_prenotations.apply(
-                lambda x: f"{str(x['NDG'])}_{str(x['PORTAFOGLIO'])}_{str(x['MOTIVAZIONE_RICHIESTA'])}", 
-                axis=1
-            )
-        
         st.session_state.search_clicked = True
     
     if st.session_state.search_clicked and ndg:
@@ -308,12 +269,9 @@ def main():
             st.warning("Nessun risultato trovato per i criteri di ricerca specificati")
             return
         
-        # Check if a prenotation already exists
-        if motivazione and not active_prenotations.empty:
-            check_key = f"{str(ndg)}_{str(portafoglio)}_{str(motivazione)}"
-            st.write("Current check key:", check_key)  # Debug line
-            
-            if check_key in active_prenotations['check_key'].values:
+        if motivazione:
+            check_key = f"{ndg}_{portafoglio}_{motivazione}"
+            if not active_prenotations.empty and check_key in active_prenotations['check_key'].values:
                 st.warning(f"Esiste già una prenotazione attiva per questo NDG/Portafoglio con la motivazione: {motivazione}")
                 return
         
@@ -345,7 +303,7 @@ def main():
 
             indic_doc_scansionare = st.multiselect(
                                                 "INDICARE DOCUMENTO DA SCANSIONARE *",
-                                                options=Config.INDICARE_DOCUMENTO_DA_SCANSIONARE,
+                                                options=[''] + Config.INDICARE_DOCUMENTO_DA_SCANSIONARE,
                                                 key="indic_doc_scansionare"
                                                 )
             if not indic_doc_scansionare:
@@ -371,10 +329,6 @@ def main():
                 st.error("Tutti i campi obbligatori devono essere compilati")
                 return
 
-            # Force data reload before saving to ensure we have latest data
-            load_google_sheets_data.clear()
-            database, prenotazioni, gestori = load_google_sheets_data()
-            
             ndg_riga = risultati.iloc[0]['NDG']
             portafoglio_riga = risultati.iloc[0]['PORTAFOGLIO']
 
@@ -389,7 +343,7 @@ def main():
                                 'DATA_RESTITUZIONE': '',
                                 'GESTORE': gestore,
                                 'MOTIVO_SINGOLO_DOC': mot_singolo_doc,
-                                'INDIC_DOC_SCANSIONARE': ', '.join(indic_doc_scansionare) if isinstance(indic_doc_scansionare, list) else indic_doc_scansionare,
+                                'INDIC_DOC_SCANSIONARE': indic_doc_scansionare,
                                 'DETTAGLIO_RICHIESTA_INTERO': dettaglio_richiesta_intero,
                                 'NOTE': notes,
                                 }
