@@ -183,7 +183,22 @@ def save_prenotazione(prenotazioni: pd.DataFrame, new_prenotazione: Dict) -> pd.
         new_row = [str(new_prenotazione.get(col, '')) for col in Config.REQUIRED_COLUMNS]
         prenotazioni_w.append_row(new_row)
 
-        
+        ######### fixare date colonna C
+        gc = gspread.service_account_from_dict(credentials)
+        sh = gc.open_by_key(st.secrets["gsheet_id"])
+        prenotazioni_w = sh.worksheet("prenotazioni")
+
+        # Ottieni tutti i dati dal foglio
+        dati = prenotazioni_w.get_all_values()
+
+        # Applica il formato data alla colonna C
+        prenotazioni_w.format(f'C2:C', {
+            "numberFormat": {
+                "type": "DATE",
+                "pattern": "dd/mm/yyyy"
+            }
+        })
+
         new_df = pd.DataFrame([new_prenotazione])
         updated_prenotazioni = pd.concat([prenotazioni, new_df], ignore_index=True)
         # Sort the DataFrame by DATA_RICHIESTA in ascending order
