@@ -188,16 +188,38 @@ def save_prenotazione(prenotazioni: pd.DataFrame, new_prenotazione: Dict) -> pd.
         sh = gc.open_by_key(st.secrets["gsheet_id"])
         prenotazioni_w = sh.worksheet("prenotazioni")
 
-        # Ottieni tutti i dati dal foglio
-        dati = prenotazioni_w.get_all_values()
+        # Accedi direttamente all'API Sheets
+        sheet_id = prenotazioni_w.id
+        spreadsheet_id = sh.id
 
-        # Applica il formato data alla colonna C
-        prenotazioni_w.format(f'C2:C', {
-            "numberFormat": {
-                "type": "DATE",
-                "pattern": "dd/mm/yyyy"
-            }
-        })
+        # Crea una richiesta di formattazione
+        request = {
+            "requests": [
+                {
+                    "repeatCell": {
+                        "range": {
+                            "sheetId": sheet_id,
+                            "startRowIndex": 1,  # Inizia dalla riga 2 (indice 1)
+                            "startColumnIndex": 2,  # Colonna C (indice 2)
+                            "endColumnIndex": 3  # Fine colonna C (indice 3)
+                        },
+                        "cell": {
+                            "userEnteredFormat": {
+                                "numberFormat": {
+                                    "type": "DATE",
+                                    "pattern": "dd/mm/yyyy"
+                                }
+                            }
+                        },
+                        "fields": "userEnteredFormat.numberFormat"
+                    }
+                }
+            ]
+        }
+
+        # Esegui la richiesta
+        sh.batch_update(request)
+
 
         new_df = pd.DataFrame([new_prenotazione])
         updated_prenotazioni = pd.concat([prenotazioni, new_df], ignore_index=True)
