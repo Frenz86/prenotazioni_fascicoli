@@ -167,7 +167,6 @@ def save_prenotazione(prenotazioni: pd.DataFrame, new_prenotazione: Dict) -> pd.
         gc = gspread.service_account_from_dict(credentials)
         sh = gc.open_by_key(st.secrets["gsheet_id"])
         prenotazioni_w = sh.worksheet("prenotazioni")
-        prenotazioni_w.format('C2:C1000', {'numberFormat': {'type': 'DATE', 'pattern': 'dd/mm/yyyy'}})
 
 
         # Format date fields for Google Sheets
@@ -183,7 +182,11 @@ def save_prenotazione(prenotazioni: pd.DataFrame, new_prenotazione: Dict) -> pd.
         
         new_row = [str(new_prenotazione.get(col, '')) for col in Config.REQUIRED_COLUMNS]
         prenotazioni_w.append_row(new_row)
-        
+        nuova_riga_indice = len(prenotazioni_w.get_all_values())
+        prenotazioni_w.format(f'C{nuova_riga_indice}', {'numberFormat': {'type': 'DATE', 'pattern': 'dd/mm/yyyy'}})
+
+
+
         new_df = pd.DataFrame([new_prenotazione])
         updated_prenotazioni = pd.concat([prenotazioni, new_df], ignore_index=True)
         # Sort the DataFrame by DATA_RICHIESTA in ascending order
