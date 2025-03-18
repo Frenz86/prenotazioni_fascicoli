@@ -178,6 +178,7 @@ def save_prenotazione(prenotazioni: pd.DataFrame, new_prenotazione: Dict) -> pd.
         new_df = pd.DataFrame([new_prenotazione])
         updated_prenotazioni = pd.concat([prenotazioni, new_df], ignore_index=True)
         # Sort the DataFrame by DATA_RICHIESTA in ascending order
+        updated_prenotazioni['DATA_RICHIESTA'] = pd.to_datetime(updated_prenotazioni['DATA_RICHIESTA'], format='%d/%m/%Y')
         updated_prenotazioni = updated_prenotazioni.sort_values(by='DATA_RICHIESTA', ascending=True, ignore_index=True)
 
         
