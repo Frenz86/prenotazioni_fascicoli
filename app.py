@@ -167,7 +167,7 @@ def save_prenotazione(prenotazioni: pd.DataFrame, new_prenotazione: Dict) -> pd.
         gc = gspread.service_account_from_dict(credentials)
         sh = gc.open_by_key(st.secrets["gsheet_id"])
         prenotazioni_w = sh.worksheet("prenotazioni")
-        prenotazioni_w.format('B2:B1000', {'numberFormat': {'type': 'DATE', 'pattern': 'dd/mm/yyyy'}})
+        prenotazioni_w.format('C2:C1000', {'numberFormat': {'type': 'DATE', 'pattern': 'dd/mm/yyyy'}})
 
 
         # Format date fields for Google Sheets
