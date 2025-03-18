@@ -169,10 +169,18 @@ def save_prenotazione(prenotazioni: pd.DataFrame, new_prenotazione: Dict) -> pd.
         prenotazioni_w = sh.worksheet("prenotazioni")
 
 
-        # Format date fields for Google Sheets
         if 'DATA_RICHIESTA' in new_prenotazione and new_prenotazione['DATA_RICHIESTA']:
+            # Prima assicuriamoci che sia un datetime
+            if not isinstance(new_prenotazione['DATA_RICHIESTA'], (datetime, pd.Timestamp)):
+                try:
+                    new_prenotazione['DATA_RICHIESTA'] = pd.to_datetime(new_prenotazione['DATA_RICHIESTA'])
+                except:
+                    # Se non riusciamo a convertirlo, lasciamolo com'è
+                    pass
+            
+            # Ora convertiamo in stringa nel formato corretto per Google Sheets
             if isinstance(new_prenotazione['DATA_RICHIESTA'], (datetime, pd.Timestamp)):
-                new_prenotazione['DATA_RICHIESTA'] = pd.to_datetime(new_prenotazione['DATA_RICHIESTA'], format='%d/%m/%Y')
+                new_prenotazione['DATA_RICHIESTA'] = new_prenotazione['DATA_RICHIESTA'].strftime('%d/%m/%Y')
 
 
         for key in Config.BOOL_COLUMNS:
