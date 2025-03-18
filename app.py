@@ -169,30 +169,19 @@ def save_prenotazione(prenotazioni: pd.DataFrame, new_prenotazione: Dict) -> pd.
         prenotazioni_w = sh.worksheet("prenotazioni")
 
 
-        # if 'DATA_RICHIESTA' in new_prenotazione and new_prenotazione['DATA_RICHIESTA']:
-        #     if not isinstance(new_prenotazione['DATA_RICHIESTA'], (datetime, pd.Timestamp)):
-        #         new_prenotazione['DATA_RICHIESTA'] = pd.to_datetime(new_prenotazione['DATA_RICHIESTA'])
-        #     if isinstance(new_prenotazione['DATA_RICHIESTA'], (datetime, pd.Timestamp)):
-        #         new_prenotazione['DATA_RICHIESTA'] = new_prenotazione['DATA_RICHIESTA'].strftime('%d/%m/%Y')
-
-        # for key in Config.BOOL_COLUMNS:
-        #     if key in new_prenotazione:
-        #         new_prenotazione[key] = str(new_prenotazione[key]).upper()
-
-        # Converti 'DATA_RICHIESTA' in datetime se non lo è già
         if 'DATA_RICHIESTA' in new_prenotazione and new_prenotazione['DATA_RICHIESTA']:
             if not isinstance(new_prenotazione['DATA_RICHIESTA'], (datetime, pd.Timestamp)):
                 new_prenotazione['DATA_RICHIESTA'] = pd.to_datetime(new_prenotazione['DATA_RICHIESTA'])
+            if isinstance(new_prenotazione['DATA_RICHIESTA'], (datetime, pd.Timestamp)):
+                new_prenotazione['DATA_RICHIESTA'] = new_prenotazione['DATA_RICHIESTA'].strftime('%d/%m/%Y')
 
-        # Converti i valori booleani in stringhe uppercase
         for key in Config.BOOL_COLUMNS:
             if key in new_prenotazione:
                 new_prenotazione[key] = str(new_prenotazione[key]).upper()
 
-        # Costruisci la nuova riga mantenendo i tipi originali dei valori
-        new_row = [new_prenotazione.get(col, '') for col in Config.REQUIRED_COLUMNS]
-        prenotazioni_w.append_row(new_row)
 
+        new_row = [str(new_prenotazione.get(col, '')) for col in Config.REQUIRED_COLUMNS]
+        prenotazioni_w.append_row(new_row)
         
         #total_rows = len(prenotazioni_w.get_all_values())
         # SOSTITUISCI QUESTA PARTE:
