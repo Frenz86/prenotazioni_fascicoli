@@ -167,7 +167,9 @@ def save_prenotazione(prenotazioni: pd.DataFrame, new_prenotazione: Dict) -> pd.
         gc = gspread.service_account_from_dict(credentials)
         sh = gc.open_by_key(st.secrets["gsheet_id"])
         prenotazioni_w = sh.worksheet("prenotazioni")
-        
+        prenotazioni_w.format('B2:B1000', {'numberFormat': {'type': 'DATE', 'pattern': 'dd/mm/yyyy'}})
+
+
         # Format date fields for Google Sheets
         if 'DATA_RICHIESTA' in new_prenotazione and new_prenotazione['DATA_RICHIESTA']:
             if isinstance(new_prenotazione['DATA_RICHIESTA'], (datetime, pd.Timestamp)):
@@ -408,7 +410,6 @@ def main():
             save_prenotazione(prenotazioni, new_prenotazione)
             st.success("Fascicolo prenotato con successo!")
             st.session_state.search_clicked = False
-            st.balloons()
             st.rerun()
                 
     st.sidebar.markdown("---")
