@@ -183,16 +183,6 @@ def save_prenotazione(prenotazioni: pd.DataFrame, new_prenotazione: Dict) -> pd.
         new_row = [str(new_prenotazione.get(col, '')) for col in Config.REQUIRED_COLUMNS]
         prenotazioni_w.append_row(new_row)
         
-        #total_rows = len(prenotazioni_w.get_all_values())
-        # SOSTITUISCI QUESTA PARTE:
-        # if total_rows > 1:
-        #     try:
-        #         prenotazioni_w.format(f'C2:C{total_rows}', 
-        #                             {'numberFormat': {'type': 'DATE', 'pattern': 'dd/mm/yyyy'}})
-        #         print(f"Formattazione applicata alla colonna C dalla riga 2 alla {total_rows}")
-        #     except Exception as e:
-        #         print(f"Errore durante la formattazione della colonna: {str(e)}")
-
         
         new_df = pd.DataFrame([new_prenotazione])
         updated_prenotazioni = pd.concat([prenotazioni, new_df], ignore_index=True)
