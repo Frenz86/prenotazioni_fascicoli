@@ -182,9 +182,26 @@ def save_prenotazione(prenotazioni: pd.DataFrame, new_prenotazione: Dict) -> pd.
         
         new_row = [str(new_prenotazione.get(col, '')) for col in Config.REQUIRED_COLUMNS]
         prenotazioni_w.append_row(new_row)
-        nuova_riga_indice = len(prenotazioni_w.get_all_values())
-        prenotazioni_w.format(f'C{nuova_riga_indice}', {'numberFormat': {'type': 'DATE', 'pattern': 'dd/mm/yyyy'}})
 
+        ultimo_indice = len(prenotazioni_w.get_all_values())
+        
+        # Log per debug
+        print(f"Formattando cella C{ultimo_indice}")
+        
+        try:
+            # Formatta solo la cella della data nella nuova riga
+            prenotazioni_w.format(f'C{ultimo_indice}', {'numberFormat': {'type': 'DATE', 'pattern': 'dd/mm/yyyy'}})
+        except Exception as format_error:
+            print(f"Errore durante la formattazione: {str(format_error)}")
+            # Alternativa: prova un altro approccio se questo fallisce
+            try:
+                # Trova l'indice della colonna DATA_RICHIESTA
+                headers = prenotazioni_w.row_values(1)  # Prima riga (intestazioni)
+                data_col_idx = headers.index("DATA_RICHIESTA") + 1  # +1 perché gspread usa indici base-1
+                cell = gspread.utils.rowcol_to_a1(ultimo_indice, data_col_idx)
+                prenotazioni_w.format(cell, {'numberFormat': {'type': 'DATE', 'pattern': 'dd/mm/yyyy'}})
+            except Exception as alt_error:
+                print(f"Errore anche con approccio alternativo: {str(alt_error)}")
 
 
         new_df = pd.DataFrame([new_prenotazione])
