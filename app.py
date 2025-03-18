@@ -171,7 +171,7 @@ def save_prenotazione(prenotazioni: pd.DataFrame, new_prenotazione: Dict) -> pd.
 
         if 'DATA_RICHIESTA' in new_prenotazione and new_prenotazione['DATA_RICHIESTA']:
             if not isinstance(new_prenotazione['DATA_RICHIESTA'], (datetime, pd.Timestamp)):
-                new_prenotazione['DATA_RICHIESTA'] = pd.to_datetime(new_prenotazione['DATA_RICHIESTA'])
+                new_prenotazione['DATA_RICHIESTA'] = pd.to_datetime(new_prenotazione['DATA_RICHIESTA'], format='%d/%m/%Y', dayfirst=True)
             if isinstance(new_prenotazione['DATA_RICHIESTA'], (datetime, pd.Timestamp)):
                 new_prenotazione['DATA_RICHIESTA'] = new_prenotazione['DATA_RICHIESTA'].strftime('%d/%m/%Y')
 
@@ -184,41 +184,41 @@ def save_prenotazione(prenotazioni: pd.DataFrame, new_prenotazione: Dict) -> pd.
         prenotazioni_w.append_row(new_row)
 
         ######### fixare date colonna C
-        gc = gspread.service_account_from_dict(credentials)
-        sh = gc.open_by_key(st.secrets["gsheet_id"])
-        prenotazioni_w = sh.worksheet("prenotazioni")
+        # gc = gspread.service_account_from_dict(credentials)
+        # sh = gc.open_by_key(st.secrets["gsheet_id"])
+        # prenotazioni_w = sh.worksheet("prenotazioni")
 
-        # Accedi direttamente all'API Sheets
-        sheet_id = prenotazioni_w.id
-        spreadsheet_id = sh.id
+        # # Accedi direttamente all'API Sheets
+        # sheet_id = prenotazioni_w.id
+        # spreadsheet_id = sh.id
 
-        # Crea una richiesta di formattazione
-        request = {
-            "requests": [
-                {
-                    "repeatCell": {
-                        "range": {
-                            "sheetId": sheet_id,
-                            "startRowIndex": 1,  # Inizia dalla riga 2 (indice 1)
-                            "startColumnIndex": 2,  # Colonna C (indice 2)
-                            "endColumnIndex": 3  # Fine colonna C (indice 3)
-                        },
-                        "cell": {
-                            "userEnteredFormat": {
-                                "numberFormat": {
-                                    "type": "DATE",
-                                    "pattern": "dd/mm/yyyy"
-                                }
-                            }
-                        },
-                        "fields": "userEnteredFormat.numberFormat"
-                    }
-                }
-            ]
-        }
+        # # Crea una richiesta di formattazione
+        # request = {
+        #     "requests": [
+        #         {
+        #             "repeatCell": {
+        #                 "range": {
+        #                     "sheetId": sheet_id,
+        #                     "startRowIndex": 1,  # Inizia dalla riga 2 (indice 1)
+        #                     "startColumnIndex": 2,  # Colonna C (indice 2)
+        #                     "endColumnIndex": 3  # Fine colonna C (indice 3)
+        #                 },
+        #                 "cell": {
+        #                     "userEnteredFormat": {
+        #                         "numberFormat": {
+        #                             "type": "DATE",
+        #                             "pattern": "dd/mm/yyyy"
+        #                         }
+        #                     }
+        #                 },
+        #                 "fields": "userEnteredFormat.numberFormat"
+        #             }
+        #         }
+        #     ]
+        # }
 
-        # Esegui la richiesta
-        sh.batch_update(request)
+        # # Esegui la richiesta
+        # sh.batch_update(request)
 
 
         new_df = pd.DataFrame([new_prenotazione])
