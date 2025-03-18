@@ -170,26 +170,28 @@ def save_prenotazione(prenotazioni: pd.DataFrame, new_prenotazione: Dict) -> pd.
 
 
         if 'DATA_RICHIESTA' in new_prenotazione and new_prenotazione['DATA_RICHIESTA']:
-            # Prima assicuriamoci che sia un datetime
             if not isinstance(new_prenotazione['DATA_RICHIESTA'], (datetime, pd.Timestamp)):
-                try:
-                    new_prenotazione['DATA_RICHIESTA'] = pd.to_datetime(new_prenotazione['DATA_RICHIESTA'])
-                except:
-                    # Se non riusciamo a convertirlo, lasciamolo com'è
-                    pass
-            
-            # Ora convertiamo in stringa nel formato corretto per Google Sheets
+                new_prenotazione['DATA_RICHIESTA'] = pd.to_datetime(new_prenotazione['DATA_RICHIESTA'])
             if isinstance(new_prenotazione['DATA_RICHIESTA'], (datetime, pd.Timestamp)):
                 new_prenotazione['DATA_RICHIESTA'] = new_prenotazione['DATA_RICHIESTA'].strftime('%d/%m/%Y')
-
 
         for key in Config.BOOL_COLUMNS:
             if key in new_prenotazione:
                 new_prenotazione[key] = str(new_prenotazione[key]).upper()
 
-        
+
         new_row = [str(new_prenotazione.get(col, '')) for col in Config.REQUIRED_COLUMNS]
         prenotazioni_w.append_row(new_row)
+        total_rows = len(prenotazioni_w.get_all_values())
+
+        # Formatta tutta la colonna C (esclusa l'intestazione)
+        if total_rows > 1:
+            try:
+                prenotazioni_w.format(f'C2:C{total_rows}', 
+                                    {'numberFormat': {'type': 'DATE', 'pattern': 'dd/mm/yyyy'}})
+                print(f"Formattazione applicata alla colonna C dalla riga 2 alla {total_rows}")
+            except Exception as e:
+                print(f"Errore durante la formattazione della colonna: {str(e)}")
         
         new_df = pd.DataFrame([new_prenotazione])
         updated_prenotazioni = pd.concat([prenotazioni, new_df], ignore_index=True)
