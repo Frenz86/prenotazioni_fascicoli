@@ -181,45 +181,7 @@ def save_prenotazione(prenotazioni: pd.DataFrame, new_prenotazione: Dict) -> pd.
 
 
         new_row = [str(new_prenotazione.get(col, '')) for col in Config.REQUIRED_COLUMNS]
-        prenotazioni_w.append_row(new_row)
-
-        ######### fixare date colonna C
-        # gc = gspread.service_account_from_dict(credentials)
-        # sh = gc.open_by_key(st.secrets["gsheet_id"])
-        # prenotazioni_w = sh.worksheet("prenotazioni")
-
-        # # Accedi direttamente all'API Sheets
-        # sheet_id = prenotazioni_w.id
-        # spreadsheet_id = sh.id
-
-        # # Crea una richiesta di formattazione
-        # request = {
-        #     "requests": [
-        #         {
-        #             "repeatCell": {
-        #                 "range": {
-        #                     "sheetId": sheet_id,
-        #                     "startRowIndex": 1,  # Inizia dalla riga 2 (indice 1)
-        #                     "startColumnIndex": 2,  # Colonna C (indice 2)
-        #                     "endColumnIndex": 3  # Fine colonna C (indice 3)
-        #                 },
-        #                 "cell": {
-        #                     "userEnteredFormat": {
-        #                         "numberFormat": {
-        #                             "type": "DATE",
-        #                             "pattern": "dd/mm/yyyy"
-        #                         }
-        #                     }
-        #                 },
-        #                 "fields": "userEnteredFormat.numberFormat"
-        #             }
-        #         }
-        #     ]
-        # }
-
-        # # Esegui la richiesta
-        # sh.batch_update(request)
-
+        prenotazioni_w.append_row(new_row,value_input_option="USER_ENTERED") ## stocazzo era questa per la data!!!!!
 
         new_df = pd.DataFrame([new_prenotazione])
         updated_prenotazioni = pd.concat([prenotazioni, new_df], ignore_index=True)
