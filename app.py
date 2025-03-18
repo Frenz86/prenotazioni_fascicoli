@@ -202,6 +202,7 @@ def save_prenotazione(prenotazioni: pd.DataFrame, new_prenotazione: Dict) -> pd.
         st.error(f"Error saving reservation: {str(e)}")
         raise
 
+
 def render_login_page():
     st.title('Login Richieste Fascicoli')
     try:
