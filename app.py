@@ -196,8 +196,6 @@ def save_prenotazione(prenotazioni: pd.DataFrame, new_prenotazione: Dict) -> pd.
         # Sort the DataFrame by DATA_RICHIESTA in ascending order
         updated_prenotazioni['DATA_RICHIESTA'] = pd.to_datetime(updated_prenotazioni['DATA_RICHIESTA'], format='%d/%m/%Y')
         updated_prenotazioni = updated_prenotazioni.sort_values(by='DATA_RICHIESTA', ascending=True, ignore_index=True)
-        prenotazioni_w.format('C2:C1000', {'numberFormat': {'type': 'DATE', 'pattern': 'dd/mm/yyyy'}})
-
         
         # Clear cache to ensure fresh data load
         st.success("Prenotazione salvata, aggiornamento dati in corso...")
