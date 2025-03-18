@@ -172,26 +172,22 @@ def save_prenotazione(prenotazioni: pd.DataFrame, new_prenotazione: Dict) -> pd.
         if 'DATA_RICHIESTA' in new_prenotazione and new_prenotazione['DATA_RICHIESTA']:
             if isinstance(new_prenotazione['DATA_RICHIESTA'], (datetime, pd.Timestamp)):
                 new_prenotazione['DATA_RICHIESTA'] = new_prenotazione['DATA_RICHIESTA'].strftime('%d/%m/%Y')
-        
-        # Convert boolean fields
+
+
         for key in Config.BOOL_COLUMNS:
             if key in new_prenotazione:
                 new_prenotazione[key] = str(new_prenotazione[key]).upper()
+
         
         new_row = [str(new_prenotazione.get(col, '')) for col in Config.REQUIRED_COLUMNS]
         prenotazioni_w.append_row(new_row)
         
-        # Format the date column in Google Sheets to ensure it's recognized as a date
-        date_col_index = Config.REQUIRED_COLUMNS.index('DATA_RICHIESTA') + 1  # +1 because gspread uses 1-based indexing
-        cell_range = f"{chr(64 + date_col_index)}{prenotazioni_w.row_count}"  # e.g., "C123"
-        prenotazioni_w.format(cell_range, {"numberFormat": {"type": "DATE", "pattern": "dd/mm/yyyy"}})
-        
         new_df = pd.DataFrame([new_prenotazione])
         updated_prenotazioni = pd.concat([prenotazioni, new_df], ignore_index=True)
-        
-        # For sorting, convert to datetime again
+        # Sort the DataFrame by DATA_RICHIESTA in ascending order
         updated_prenotazioni['DATA_RICHIESTA'] = pd.to_datetime(updated_prenotazioni['DATA_RICHIESTA'], format='%d/%m/%Y')
         updated_prenotazioni = updated_prenotazioni.sort_values(by='DATA_RICHIESTA', ascending=True, ignore_index=True)
+
         
         # Clear cache to ensure fresh data load
         st.success("Prenotazione salvata, aggiornamento dati in corso...")
@@ -201,7 +197,6 @@ def save_prenotazione(prenotazioni: pd.DataFrame, new_prenotazione: Dict) -> pd.
     except Exception as e:
         st.error(f"Error saving reservation: {str(e)}")
         raise
-
 
 def render_login_page():
     st.title('Login Richieste Fascicoli')
