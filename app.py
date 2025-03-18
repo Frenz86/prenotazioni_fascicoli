@@ -168,9 +168,16 @@ def save_prenotazione(prenotazioni: pd.DataFrame, new_prenotazione: Dict) -> pd.
         sh = gc.open_by_key(st.secrets["gsheet_id"])
         prenotazioni_w = sh.worksheet("prenotazioni")
         
+        # Format date fields for Google Sheets
+        if 'DATA_RICHIESTA' in new_prenotazione and new_prenotazione['DATA_RICHIESTA']:
+            if isinstance(new_prenotazione['DATA_RICHIESTA'], (datetime, pd.Timestamp)):
+                new_prenotazione['DATA_RICHIESTA'] = new_prenotazione['DATA_RICHIESTA'].strftime('%d/%m/%Y')
+
+
         for key in Config.BOOL_COLUMNS:
             if key in new_prenotazione:
                 new_prenotazione[key] = str(new_prenotazione[key]).upper()
+
         
         new_row = [str(new_prenotazione.get(col, '')) for col in Config.REQUIRED_COLUMNS]
         prenotazioni_w.append_row(new_row)
