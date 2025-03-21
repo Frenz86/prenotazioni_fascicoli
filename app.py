@@ -348,11 +348,12 @@ def main():
         dettaglio_richiesta_intero = "-"
         if motivazione in ["Richiesta fascicolo CARTACEO"]:
             tipologia_cartaceo = st.radio("Selezionare l'opzione",
-                                captions=[
-                                    "SINGOLO",
-                                    "COMPLETO",
-                                ],
-                            )
+                                    options=["SINGOLO", "COMPLETO"],  # Add this line
+                                    captions=[
+                                        "SINGOLO",
+                                        "COMPLETO",
+                                    ],
+                                )
 
             if tipologia_cartaceo == "SINGOLO":
                 st.markdown("")
