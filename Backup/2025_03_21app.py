@@ -30,8 +30,8 @@ class Config:
                         ]
     MOTIVAZIONI = [
                     "Scansione intero fascicolo (solo se completamente assente o privo di documentazione rilevante)",
-                    "Richiesta fascicolo cartaceo per scansione singolo documento  (compilare campo dettaglio scansione) solo per escussione garanzia consortile, richiesta specifica debitori, reclami",
-                    "Richiesta intero fascicolo CARTACEO (compilare campo dettaglio Richiesta)",
+                    #"Richiesta fascicolo cartaceo per scansione singolo documento  (compilare campo dettaglio scansione) solo per escussione garanzia consortile, richiesta specifica debitori, reclami",
+                    "Richiesta fascicolo CARTACEO",
                     ]
     
     BOOL_COLUMNS = ['PRENOTATO', 'RESTITUITO']
@@ -341,7 +341,24 @@ def main():
         if motivazione in ["Scansione intero fascicolo (solo se completamente assente o privo di documentazione rilevante)"]:
             st.markdown("")
             notes = st.text_area("Note aggiuntive", key="note")
-    
+
+        ##### modifica Valentina #########################################################
+
+        if motivazione in ["Richiesta fascicolo CARTACEO"]:
+            st.markdown("")
+            dettaglio_richiesta_intero = st.selectbox(
+                                                    "DETTAGLIO RICHIESTA INTERO FASCICOLO_CARTACEO *",
+                                                    options=[''] + Config.DETTAGLIO_RICHIESTA_INTERO_FASCICOLO_CARTACEO,
+                                                    key="dettaglio_richiesta_intero"
+                                                    )
+            if not dettaglio_richiesta_intero:
+                st.markdown('<p class="required">Dettaglio Intero Fascicolo </p>', 
+                            unsafe_allow_html=True)
+            notes = st.text_area("Note aggiuntive", key="note")
+
+
+
+
         if motivazione in ["Richiesta fascicolo cartaceo per scansione singolo documento  (compilare campo dettaglio scansione) solo per escussione garanzia consortile, richiesta specifica debitori, reclami"]:
             st.markdown("")
 
@@ -364,17 +381,6 @@ def main():
                             unsafe_allow_html=True)
             notes = st.text_area("Note aggiuntive", key="note")
 
-        if motivazione in ["Richiesta intero fascicolo CARTACEO (compilare campo dettaglio Richiesta)"]:
-            st.markdown("")
-            dettaglio_richiesta_intero = st.selectbox(
-                                                    "DETTAGLIO RICHIESTA INTERO FASCICOLO_CARTACEO *",
-                                                    options=[''] + Config.DETTAGLIO_RICHIESTA_INTERO_FASCICOLO_CARTACEO,
-                                                    key="dettaglio_richiesta_intero"
-                                                    )
-            if not dettaglio_richiesta_intero:
-                st.markdown('<p class="required">Dettaglio Intero Fascicolo </p>', 
-                            unsafe_allow_html=True)
-            notes = st.text_area("Note aggiuntive", key="note")
 
 
         if st.button("Prenota Fascicolo"):
