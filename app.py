@@ -363,7 +363,7 @@ def main():
             else:
                 xx = "specificare la motivazione soprattutto per escussione garanzia consortile, richiesta specifica debitori, reclami"
                 notes = st.text_area(xx, key="note")
-                mot_singolo_doc = "-"
+                mot_singolo_doc = "FASCICOLO COMPLETO"
 
         if st.button("Prenota Fascicolo"):
             if not all([ndg, motivazione, gestore]):
