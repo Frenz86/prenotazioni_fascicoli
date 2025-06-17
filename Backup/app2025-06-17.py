@@ -112,31 +112,63 @@ def render_booking_form(gestori: pd.DataFrame) -> str:
     
     return gestore
 
-
-def remove_all_filters_from_sheet(worksheet):
+def force_remove_all_filters(worksheet):
     """
-    Rimuove tutti i filtri da un worksheet usando le API di Google Sheets
+    Rimuove TUTTI i tipi di filtri usando le API Google Sheets
     """
     try:
         spreadsheet = worksheet.spreadsheet
         sheet_id = worksheet.id
         
-        # Batch request per rimuovere tutti i filtri
+        # Get current sheet metadata to see what filters exist
+        sheet_metadata = spreadsheet.fetch_sheet_metadata()
+        
         requests = []
         
-        # Request per cancellare il basic filter
+        # Find our specific sheet
+        target_sheet = None
+        for sheet in sheet_metadata['sheets']:
+            if sheet['properties']['sheetId'] == sheet_id:
+                target_sheet = sheet
+                break
+        
+        if target_sheet:
+            # Remove basic filter if it exists
+            if 'basicFilter' in target_sheet:
+                requests.append({
+                    "clearBasicFilter": {
+                        "sheetId": sheet_id
+                    }
+                })
+            
+            # Remove all filter views if they exist
+            if 'filterViews' in target_sheet:
+                for filter_view in target_sheet['filterViews']:
+                    requests.append({
+                        "deleteFilterView": {
+                            "filterId": filter_view['filterViewId']
+                        }
+                    })
+        
+        # Also try to clear any basic filter that might not be in metadata
         requests.append({
             "clearBasicFilter": {
                 "sheetId": sheet_id
             }
         })
         
-        # Esegui la batch request
+        # Execute all requests
         if requests:
             spreadsheet.batch_update({"requests": requests})
             
+        # Double-check: try the gspread method too
+        try:
+            worksheet.clear_basic_filter()
+        except:
+            pass
+            
     except Exception as e:
-        print(f"Error removing filters: {e}")
+        print(f"Warning: Could not remove all filters: {e}")
 
 @st.cache_data(ttl=45)
 def load_google_sheets_data() -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
@@ -163,10 +195,11 @@ def load_google_sheets_data() -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]
                     #"centri_costo": sh.worksheet("centri_costo")
                     }
         
-        # Remove all filters from each worksheet before reading data
+        # Force remove all filters from each worksheet
         for name, ws in worksheets.items():
-            remove_all_filters_from_sheet(ws)
+            force_remove_all_filters(ws)
         
+        # Now read with get_all_records (filters should be cleared)
         dfs = {name: pd.DataFrame(ws.get_all_records()) for name, ws in worksheets.items()}
         
         # Improved boolean conversion
@@ -198,8 +231,8 @@ def save_prenotazione(prenotazioni: pd.DataFrame, new_prenotazione: Dict) -> pd.
         sh = gc.open_by_key(st.secrets["gsheet_id"])
         prenotazioni_w = sh.worksheet("prenotazioni")
 
-        # Remove all filters using API request
-        remove_all_filters_from_sheet(prenotazioni_w)
+        # Force remove all filters before saving
+        force_remove_all_filters(prenotazioni_w)
 
         if 'DATA_RICHIESTA' in new_prenotazione and new_prenotazione['DATA_RICHIESTA']:
             if not isinstance(new_prenotazione['DATA_RICHIESTA'], (datetime, pd.Timestamp)):
@@ -212,7 +245,7 @@ def save_prenotazione(prenotazioni: pd.DataFrame, new_prenotazione: Dict) -> pd.
                 new_prenotazione[key] = str(new_prenotazione[key]).upper()
 
         new_row = [str(new_prenotazione.get(col, '')) for col in Config.REQUIRED_COLUMNS]
-        prenotazioni_w.append_row(new_row,value_input_option="USER_ENTERED") ## stocazzo era questa per la data!!!!!
+        prenotazioni_w.append_row(new_row, value_input_option="USER_ENTERED")
 
         new_df = pd.DataFrame([new_prenotazione])
         updated_prenotazioni = pd.concat([prenotazioni, new_df], ignore_index=True)
