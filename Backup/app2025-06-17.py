@@ -139,7 +139,7 @@ def get_gspread_client() -> gspread.Client:
         raise
 
 
-# --- FUNZIONE PER CARICARE I DATI ---
+# --- FUNZIONE PER CARICARE I DATI (INVARIATA) ---
 @st.cache_data(ttl=60)
 def load_google_sheets_data() -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     """
@@ -170,25 +170,22 @@ def load_google_sheets_data() -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]
         raise
 
 
-# --- FUNZIONE PER SALVARE UNA NUOVA PRENOTAZIONE (CON LA CORREZIONE) ---
+# --- FUNZIONE PER SALVARE UNA NUOVA PRENOTAZIONE (VERSIONE ALTERNATIVA) ---
 def save_prenotazione(prenotazioni: pd.DataFrame, new_prenotazione: Dict) -> pd.DataFrame:
     """
     Salva una nuova riga di prenotazione nel foglio Google e aggiorna il DataFrame locale.
-    Rimuove i filtri prima di scrivere per evitare la sovrascrittura dei dati.
+    Usa get_all_values() per calcolare l'ultima riga effettiva, ignorando i filtri.
     """
     try:
         gc = get_gspread_client()
         sh = gc.open_by_key(st.secrets["gsheet_id"])
         prenotazioni_w = sh.worksheet("prenotazioni")
 
-        # --- SOLUZIONE AL PROBLEMA DEL FILTRO ---
-        try:
-            prenotazioni_w.clear_basic_filter()
-            print("Filtro di base rimosso con successo dal foglio 'prenotazioni'.")
-        except gspread.exceptions.APIError as e:
-            print(f"Nota: Nessun filtro da rimuovere (o errore API minore): {e}")
-        # --- FINE DELLA SOLUZIONE ---
-
+        # --- METODO ALTERNATIVO: CALCOLA L'ULTIMA RIGA CON get_all_values() ---
+        # Questo metodo legge TUTTI i dati reali del foglio, ignorando completamente i filtri
+        all_values = prenotazioni_w.get_all_values()
+        next_row = len(all_values) + 1  # La prossima riga disponibile
+        
         # Preparazione dei dati per la scrittura
         if 'DATA_RICHIESTA' in new_prenotazione and new_prenotazione['DATA_RICHIESTA']:
             if not isinstance(new_prenotazione['DATA_RICHIESTA'], (datetime, pd.Timestamp)):
@@ -202,9 +199,12 @@ def save_prenotazione(prenotazioni: pd.DataFrame, new_prenotazione: Dict) -> pd.
                 new_prenotazione[key] = str(new_prenotazione[key]).upper()
 
         # Usa la configurazione dalla classe Config per l'ordine delle colonne
-        new_row = [str(new_prenotazione.get(col, '')) for col in Config.REQUIRED_COLUMNS]
+        new_row_data = [str(new_prenotazione.get(col, '')) for col in Config.REQUIRED_COLUMNS]
         
-        prenotazioni_w.append_row(new_row, value_input_option="USER_ENTERED")
+        # Inserisce direttamente nella riga calcolata usando update() invece di append_row()
+        end_col = chr(ord('A') + len(Config.REQUIRED_COLUMNS) - 1)
+        range_name = f"A{next_row}:{end_col}{next_row}"
+        prenotazioni_w.update(range_name, [new_row_data], value_input_option="USER_ENTERED")
 
         # Aggiorna il DataFrame locale per riflettere immediatamente la modifica nell'UI
         new_df = pd.DataFrame([new_prenotazione])
