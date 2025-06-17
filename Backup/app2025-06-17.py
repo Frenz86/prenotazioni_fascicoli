@@ -112,154 +112,126 @@ def render_booking_form(gestori: pd.DataFrame) -> str:
     
     return gestore
 
-def force_remove_all_filters(worksheet):
+@st.cache_resource
+def get_gspread_client() -> gspread.Client:
     """
-    Rimuove TUTTI i tipi di filtri usando le API Google Sheets
+    Si connette a Google Sheets usando le credenziali di Streamlit Secrets
+    e mette in cache la connessione per riutilizzarla.
+    Ritorna un client gspread autorizzato.
     """
-    try:
-        spreadsheet = worksheet.spreadsheet
-        sheet_id = worksheet.id
-        
-        # Get current sheet metadata to see what filters exist
-        sheet_metadata = spreadsheet.fetch_sheet_metadata()
-        
-        requests = []
-        
-        # Find our specific sheet
-        target_sheet = None
-        for sheet in sheet_metadata['sheets']:
-            if sheet['properties']['sheetId'] == sheet_id:
-                target_sheet = sheet
-                break
-        
-        if target_sheet:
-            # Remove basic filter if it exists
-            if 'basicFilter' in target_sheet:
-                requests.append({
-                    "clearBasicFilter": {
-                        "sheetId": sheet_id
-                    }
-                })
-            
-            # Remove all filter views if they exist
-            if 'filterViews' in target_sheet:
-                for filter_view in target_sheet['filterViews']:
-                    requests.append({
-                        "deleteFilterView": {
-                            "filterId": filter_view['filterViewId']
-                        }
-                    })
-        
-        # Also try to clear any basic filter that might not be in metadata
-        requests.append({
-            "clearBasicFilter": {
-                "sheetId": sheet_id
-            }
-        })
-        
-        # Execute all requests
-        if requests:
-            spreadsheet.batch_update({"requests": requests})
-            
-        # Double-check: try the gspread method too
-        try:
-            worksheet.clear_basic_filter()
-        except:
-            pass
-            
-    except Exception as e:
-        print(f"Warning: Could not remove all filters: {e}")
-
-@st.cache_data(ttl=45)
-def load_google_sheets_data() -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     try:
         credentials = {
-                        "type": st.secrets["type"],
-                        "project_id": st.secrets["project_id"],
-                        "private_key_id": st.secrets["private_key_id"],
-                        "private_key": st.secrets["private_key"],
-                        "client_email": st.secrets["client_email"],
-                        "client_id": st.secrets["client_id"],
-                        "auth_uri": st.secrets["auth_uri"],
-                        "token_uri": st.secrets["token_uri"],
-                        "auth_provider_x509_cert_url": st.secrets["auth_provider_x509_cert_url"],
-                        "client_x509_cert_url": st.secrets["client_x509_cert_url"]
-                        }
-        gc = gspread.service_account_from_dict(credentials)
+            "type": st.secrets["type"],
+            "project_id": st.secrets["project_id"],
+            "private_key_id": st.secrets["private_key_id"],
+            "private_key": st.secrets["private_key"],
+            "client_email": st.secrets["client_email"],
+            "client_id": st.secrets["client_id"],
+            "auth_uri": st.secrets["auth_uri"],
+            "token_uri": st.secrets["token_uri"],
+            "auth_provider_x509_cert_url": st.secrets["auth_provider_x509_cert_url"],
+            "client_x509_cert_url": st.secrets["client_x509_cert_url"]
+        }
+        return gspread.service_account_from_dict(credentials)
+    except Exception as e:
+        st.error(f"Errore durante l'autenticazione a Google Sheets: {e}")
+        raise
+
+
+# --- FUNZIONE PER CARICARE I DATI ---
+@st.cache_data(ttl=60) # Aumentato leggermente il TTL per stabilità
+def load_google_sheets_data() -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+    """
+    Carica i dati dai fogli Google specificati in DataFrame Pandas.
+    Usa la cache di Streamlit per evitare ricaricamenti frequenti.
+    """
+    try:
+        gc = get_gspread_client()
         sh = gc.open_by_key(st.secrets["gsheet_id"])
         
         worksheets = {
-                    "database": sh.worksheet("database"),
-                    "prenotazioni": sh.worksheet("prenotazioni"),
-                    "gestori": sh.worksheet("gestori"),
-                    #"centri_costo": sh.worksheet("centri_costo")
-                    }
+            "database": sh.worksheet("database"),
+            "prenotazioni": sh.worksheet("prenotazioni"),
+            "gestori": sh.worksheet("gestori"),
+        }
         
-        # Force remove all filters from each worksheet
-        for name, ws in worksheets.items():
-            force_remove_all_filters(ws)
-        
-        # Now read with get_all_records (filters should be cleared)
+        # Scarica i dati e li converte in DataFrame
         dfs = {name: pd.DataFrame(ws.get_all_records()) for name, ws in worksheets.items()}
         
-        # Improved boolean conversion
+        # Conversione sicura delle colonne booleane
         for col in Config.BOOL_COLUMNS:
             if col in dfs['prenotazioni'].columns:
-                dfs['prenotazioni'][col] = dfs['prenotazioni'][col].astype(str).str.upper().map({'TRUE': True, 'FALSE': False})
+                # Converte tutto in stringa, poi in maiuscolo e infine mappa i valori
+                dfs['prenotazioni'][col] = dfs['prenotazioni'][col].astype(str).str.upper().map({'TRUE': True, 'FALSE': False, '': False}).fillna(False)
         
         return dfs['database'], dfs['prenotazioni'], dfs['gestori']
     
     except Exception as e:
-        st.error(f"Error loading data: {str(e)}")
+        st.error(f"Errore durante il caricamento dei dati da Google Sheets: {e}")
         raise
 
+
+# --- FUNZIONE PER SALVARE UNA NUOVA PRENOTAZIONE (CON LA CORREZIONE) ---
 def save_prenotazione(prenotazioni: pd.DataFrame, new_prenotazione: Dict) -> pd.DataFrame:
+    """
+    Salva una nuova riga di prenotazione nel foglio Google e aggiorna il DataFrame locale.
+    Rimuove i filtri prima di scrivere per evitare la sovrascrittura dei dati.
+    """
     try:
-        credentials = {
-                        "type": st.secrets["type"],
-                        "project_id": st.secrets["project_id"],
-                        "private_key_id": st.secrets["private_key_id"],
-                        "private_key": st.secrets["private_key"],
-                        "client_email": st.secrets["client_email"],
-                        "client_id": st.secrets["client_id"],
-                        "auth_uri": st.secrets["auth_uri"],
-                        "token_uri": st.secrets["token_uri"],
-                        "auth_provider_x509_cert_url": st.secrets["auth_provider_x509_cert_url"],
-                        "client_x509_cert_url": st.secrets["client_x509_cert_url"]
-                    }
-        gc = gspread.service_account_from_dict(credentials)
+        gc = get_gspread_client()
         sh = gc.open_by_key(st.secrets["gsheet_id"])
         prenotazioni_w = sh.worksheet("prenotazioni")
 
-        # Force remove all filters before saving
-        force_remove_all_filters(prenotazioni_w)
+        # --- SOLUZIONE AL PROBLEMA DEL FILTRO ---
+        # Rimuove qualsiasi filtro di base prima di scrivere. Questo garantisce
+        # che `append_row` aggiunga la riga alla fine reale del foglio.
+        try:
+            prenotazioni_w.clear_basic_filter()
+            print("Filtro di base rimosso con successo dal foglio 'prenotazioni'.")
+        except gspread.exceptions.APIError as e:
+            # Questo errore è atteso se non ci sono filtri attivi.
+            # Lo registriamo per debug ma non fermiamo l'esecuzione.
+            print(f"Nota: Nessun filtro da rimuovere (o errore API minore): {e}")
+        # --- FINE DELLA SOLUZIONE ---
 
+        # Preparazione dei dati per la scrittura
+        # Converte la data in stringa formato DD/MM/YYYY se presente
         if 'DATA_RICHIESTA' in new_prenotazione and new_prenotazione['DATA_RICHIESTA']:
             if not isinstance(new_prenotazione['DATA_RICHIESTA'], (datetime, pd.Timestamp)):
-                new_prenotazione['DATA_RICHIESTA'] = pd.to_datetime(new_prenotazione['DATA_RICHIESTA'], format='%d/%m/%Y', dayfirst=True)
-            if isinstance(new_prenotazione['DATA_RICHIESTA'], (datetime, pd.Timestamp)):
-                new_prenotazione['DATA_RICHIESTA'] = new_prenotazione['DATA_RICHIESTA'].strftime('%d/%m/%Y')
+                new_prenotazione['DATA_RICHIESTA'] = pd.to_datetime(new_prenotazione['DATA_RICHIESTA'])
+            
+            # Formatta sempre in stringa per la scrittura su Google Sheet
+            new_prenotazione['DATA_RICHIESTA'] = new_prenotazione['DATA_RICHIESTA'].strftime('%d/%m/%Y')
 
+        # Converte i valori booleani in stringhe "TRUE"/"FALSE"
         for key in Config.BOOL_COLUMNS:
             if key in new_prenotazione:
                 new_prenotazione[key] = str(new_prenotazione[key]).upper()
 
+        # Costruisce la riga da inserire, rispettando l'ordine delle colonne
         new_row = [str(new_prenotazione.get(col, '')) for col in Config.REQUIRED_COLUMNS]
+        
+        # Aggiunge la nuova riga al foglio
         prenotazioni_w.append_row(new_row, value_input_option="USER_ENTERED")
 
+        # Aggiorna il DataFrame locale per riflettere immediatamente la modifica nell'UI
+        # senza attendere il refresh della cache.
         new_df = pd.DataFrame([new_prenotazione])
         updated_prenotazioni = pd.concat([prenotazioni, new_df], ignore_index=True)
-        # Sort the DataFrame by DATA_RICHIESTA in ascending order
-        updated_prenotazioni['DATA_RICHIESTA'] = pd.to_datetime(updated_prenotazioni['DATA_RICHIESTA'], format='%d/%m/%Y')
+        
+        # Assicura che la colonna data sia del tipo corretto prima di ordinare
+        updated_prenotazioni['DATA_RICHIESTA'] = pd.to_datetime(updated_prenotazioni['DATA_RICHIESTA'], format='%d/%m/%Y', errors='coerce')
         updated_prenotazioni = updated_prenotazioni.sort_values(by='DATA_RICHIESTA', ascending=True, ignore_index=True)
         
-        # Clear cache to ensure fresh data load
-        st.success("Prenotazione salvata, aggiornamento dati in corso...")
+        st.success("Prenotazione salvata con successo!")
+        
+        # Pulisce la cache per forzare un ricaricamento dei dati alla prossima interazione
         load_google_sheets_data.clear()
         
         return updated_prenotazioni
+        
     except Exception as e:
-        st.error(f"Error saving reservation: {str(e)}")
+        st.error(f"Errore critico durante il salvataggio della prenotazione: {e}")
         raise
 
 def render_login_page():
