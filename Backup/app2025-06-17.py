@@ -112,12 +112,13 @@ def render_booking_form(gestori: pd.DataFrame) -> str:
     
     return gestore
 
+
+# --- FUNZIONE DI AUTENTICAZIONE OTTIMIZZATA ---
 @st.cache_resource
 def get_gspread_client() -> gspread.Client:
     """
     Si connette a Google Sheets usando le credenziali di Streamlit Secrets
     e mette in cache la connessione per riutilizzarla.
-    Ritorna un client gspread autorizzato.
     """
     try:
         credentials = {
@@ -139,7 +140,7 @@ def get_gspread_client() -> gspread.Client:
 
 
 # --- FUNZIONE PER CARICARE I DATI ---
-@st.cache_data(ttl=60) # Aumentato leggermente il TTL per stabilità
+@st.cache_data(ttl=60)
 def load_google_sheets_data() -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     """
     Carica i dati dai fogli Google specificati in DataFrame Pandas.
@@ -155,13 +156,11 @@ def load_google_sheets_data() -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]
             "gestori": sh.worksheet("gestori"),
         }
         
-        # Scarica i dati e li converte in DataFrame
         dfs = {name: pd.DataFrame(ws.get_all_records()) for name, ws in worksheets.items()}
         
-        # Conversione sicura delle colonne booleane
+        # Usa la configurazione dalla classe Config
         for col in Config.BOOL_COLUMNS:
             if col in dfs['prenotazioni'].columns:
-                # Converte tutto in stringa, poi in maiuscolo e infine mappa i valori
                 dfs['prenotazioni'][col] = dfs['prenotazioni'][col].astype(str).str.upper().map({'TRUE': True, 'FALSE': False, '': False}).fillna(False)
         
         return dfs['database'], dfs['prenotazioni'], dfs['gestori']
@@ -183,49 +182,38 @@ def save_prenotazione(prenotazioni: pd.DataFrame, new_prenotazione: Dict) -> pd.
         prenotazioni_w = sh.worksheet("prenotazioni")
 
         # --- SOLUZIONE AL PROBLEMA DEL FILTRO ---
-        # Rimuove qualsiasi filtro di base prima di scrivere. Questo garantisce
-        # che `append_row` aggiunga la riga alla fine reale del foglio.
         try:
             prenotazioni_w.clear_basic_filter()
             print("Filtro di base rimosso con successo dal foglio 'prenotazioni'.")
         except gspread.exceptions.APIError as e:
-            # Questo errore è atteso se non ci sono filtri attivi.
-            # Lo registriamo per debug ma non fermiamo l'esecuzione.
             print(f"Nota: Nessun filtro da rimuovere (o errore API minore): {e}")
         # --- FINE DELLA SOLUZIONE ---
 
         # Preparazione dei dati per la scrittura
-        # Converte la data in stringa formato DD/MM/YYYY se presente
         if 'DATA_RICHIESTA' in new_prenotazione and new_prenotazione['DATA_RICHIESTA']:
             if not isinstance(new_prenotazione['DATA_RICHIESTA'], (datetime, pd.Timestamp)):
                 new_prenotazione['DATA_RICHIESTA'] = pd.to_datetime(new_prenotazione['DATA_RICHIESTA'])
             
-            # Formatta sempre in stringa per la scrittura su Google Sheet
             new_prenotazione['DATA_RICHIESTA'] = new_prenotazione['DATA_RICHIESTA'].strftime('%d/%m/%Y')
 
-        # Converte i valori booleani in stringhe "TRUE"/"FALSE"
+        # Usa la configurazione dalla classe Config per le colonne booleane
         for key in Config.BOOL_COLUMNS:
             if key in new_prenotazione:
                 new_prenotazione[key] = str(new_prenotazione[key]).upper()
 
-        # Costruisce la riga da inserire, rispettando l'ordine delle colonne
+        # Usa la configurazione dalla classe Config per l'ordine delle colonne
         new_row = [str(new_prenotazione.get(col, '')) for col in Config.REQUIRED_COLUMNS]
         
-        # Aggiunge la nuova riga al foglio
         prenotazioni_w.append_row(new_row, value_input_option="USER_ENTERED")
 
         # Aggiorna il DataFrame locale per riflettere immediatamente la modifica nell'UI
-        # senza attendere il refresh della cache.
         new_df = pd.DataFrame([new_prenotazione])
         updated_prenotazioni = pd.concat([prenotazioni, new_df], ignore_index=True)
         
-        # Assicura che la colonna data sia del tipo corretto prima di ordinare
         updated_prenotazioni['DATA_RICHIESTA'] = pd.to_datetime(updated_prenotazioni['DATA_RICHIESTA'], format='%d/%m/%Y', errors='coerce')
         updated_prenotazioni = updated_prenotazioni.sort_values(by='DATA_RICHIESTA', ascending=True, ignore_index=True)
         
         st.success("Prenotazione salvata con successo!")
-        
-        # Pulisce la cache per forzare un ricaricamento dei dati alla prossima interazione
         load_google_sheets_data.clear()
         
         return updated_prenotazioni
@@ -233,6 +221,7 @@ def save_prenotazione(prenotazioni: pd.DataFrame, new_prenotazione: Dict) -> pd.
     except Exception as e:
         st.error(f"Errore critico durante il salvataggio della prenotazione: {e}")
         raise
+
 
 def render_login_page():
     st.title('Login Richieste Fascicoli')
