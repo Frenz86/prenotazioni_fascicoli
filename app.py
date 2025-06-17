@@ -138,64 +138,6 @@ def get_gspread_client() -> gspread.Client:
         raise
 
 
-def force_remove_all_filters(worksheet):
-    """
-    Rimuove TUTTI i tipi di filtri usando le API Google Sheets
-    """
-    try:
-        spreadsheet = worksheet.spreadsheet
-        sheet_id = worksheet.id
-        
-        # Get current sheet metadata to see what filters exist
-        sheet_metadata = spreadsheet.fetch_sheet_metadata()
-        
-        requests = []
-        
-        # Find our specific sheet
-        target_sheet = None
-        for sheet in sheet_metadata['sheets']:
-            if sheet['properties']['sheetId'] == sheet_id:
-                target_sheet = sheet
-                break
-        
-        if target_sheet:
-            # Remove basic filter if it exists
-            if 'basicFilter' in target_sheet:
-                requests.append({
-                    "clearBasicFilter": {
-                        "sheetId": sheet_id
-                    }
-                })
-            
-            # Remove all filter views if they exist
-            if 'filterViews' in target_sheet:
-                for filter_view in target_sheet['filterViews']:
-                    requests.append({
-                        "deleteFilterView": {
-                            "filterId": filter_view['filterViewId']
-                        }
-                    })
-        
-        # Also try to clear any basic filter that might not be in metadata
-        requests.append({
-            "clearBasicFilter": {
-                "sheetId": sheet_id
-            }
-        })
-        
-        # Execute all requests
-        if requests:
-            spreadsheet.batch_update({"requests": requests})
-            
-        # Double-check: try the gspread method too
-        try:
-            worksheet.clear_basic_filter()
-        except:
-            pass
-            
-    except Exception as e:
-        print(f"Warning: Could not remove all filters: {e}")
-
 # --- FUNZIONE PER CARICARE I DATI ---
 @st.cache_data(ttl=60)
 def load_google_sheets_data() -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
@@ -213,9 +155,12 @@ def load_google_sheets_data() -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]
             "gestori": sh.worksheet("gestori"),
         }
         
-        # RIMUOVI TUTTI I FILTRI PRIMA DI LEGGERE
+        # Prova a rimuovere i filtri solo con il metodo semplice (1 chiamata API per sheet)
         for name, ws in worksheets.items():
-            force_remove_all_filters(ws)
+            try:
+                ws.clear_basic_filter()
+            except:
+                pass  # Ignora errori, continua comunque
         
         dfs = {name: pd.DataFrame(ws.get_all_records()) for name, ws in worksheets.items()}
         
@@ -242,10 +187,13 @@ def save_prenotazione(prenotazioni: pd.DataFrame, new_prenotazione: Dict) -> pd.
         sh = gc.open_by_key(st.secrets["gsheet_id"])
         prenotazioni_w = sh.worksheet("prenotazioni")
 
-        # RIMUOVI TUTTI I FILTRI PRIMA DI SALVARE
-        force_remove_all_filters(prenotazioni_w)
+        # Prova a rimuovere il filtro solo con il metodo semplice (1 chiamata API)
+        try:
+            prenotazioni_w.clear_basic_filter()
+        except:
+            pass  # Ignora errori, continua comunque
 
-        # --- METODO ALTERNATIVO: CALCOLA L'ULTIMA RIGA CON get_all_values() ---
+        # --- CALCOLA L'ULTIMA RIGA CON get_all_values() ---
         # Questo metodo legge TUTTI i dati reali del foglio, ignorando completamente i filtri
         all_values = prenotazioni_w.get_all_values()
         next_row = len(all_values) + 1  # La prossima riga disponibile
@@ -285,6 +233,7 @@ def save_prenotazione(prenotazioni: pd.DataFrame, new_prenotazione: Dict) -> pd.
     except Exception as e:
         st.error(f"Errore critico durante il salvataggio della prenotazione: {e}")
         raise
+
 
 def render_login_page():
     st.title('Login Richieste Fascicoli')
