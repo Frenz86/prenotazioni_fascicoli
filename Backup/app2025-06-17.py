@@ -113,6 +113,31 @@ def render_booking_form(gestori: pd.DataFrame) -> str:
     return gestore
 
 
+def remove_all_filters_from_sheet(worksheet):
+    """
+    Rimuove tutti i filtri da un worksheet usando le API di Google Sheets
+    """
+    try:
+        spreadsheet = worksheet.spreadsheet
+        sheet_id = worksheet.id
+        
+        # Batch request per rimuovere tutti i filtri
+        requests = []
+        
+        # Request per cancellare il basic filter
+        requests.append({
+            "clearBasicFilter": {
+                "sheetId": sheet_id
+            }
+        })
+        
+        # Esegui la batch request
+        if requests:
+            spreadsheet.batch_update({"requests": requests})
+            
+    except Exception as e:
+        print(f"Error removing filters: {e}")
+
 @st.cache_data(ttl=45)
 def load_google_sheets_data() -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     try:
@@ -138,13 +163,9 @@ def load_google_sheets_data() -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]
                     #"centri_costo": sh.worksheet("centri_costo")
                     }
         
-        # Clear basic filters before reading data
+        # Remove all filters from each worksheet before reading data
         for name, ws in worksheets.items():
-            try:
-                ws.clear_basic_filter()
-            except Exception as filter_error:
-                # If clearing filter fails, continue anyway
-                print(f"Warning: Could not clear filter for {name}: {filter_error}")
+            remove_all_filters_from_sheet(ws)
         
         dfs = {name: pd.DataFrame(ws.get_all_records()) for name, ws in worksheets.items()}
         
@@ -177,11 +198,8 @@ def save_prenotazione(prenotazioni: pd.DataFrame, new_prenotazione: Dict) -> pd.
         sh = gc.open_by_key(st.secrets["gsheet_id"])
         prenotazioni_w = sh.worksheet("prenotazioni")
 
-        # Clear basic filter before operations
-        try:
-            prenotazioni_w.clear_basic_filter()
-        except Exception as filter_error:
-            print(f"Warning: Could not clear filter for prenotazioni: {filter_error}")
+        # Remove all filters using API request
+        remove_all_filters_from_sheet(prenotazioni_w)
 
         if 'DATA_RICHIESTA' in new_prenotazione and new_prenotazione['DATA_RICHIESTA']:
             if not isinstance(new_prenotazione['DATA_RICHIESTA'], (datetime, pd.Timestamp)):
