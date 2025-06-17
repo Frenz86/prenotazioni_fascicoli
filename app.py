@@ -155,12 +155,9 @@ def load_google_sheets_data() -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]
             "gestori": sh.worksheet("gestori"),
         }
         
-        # Prova a rimuovere i filtri solo con il metodo semplice (1 chiamata API per sheet)
-        for name, ws in worksheets.items():
-            try:
-                ws.clear_basic_filter()
-            except:
-                pass  # Ignora errori, continua comunque
+        # # RIMUOVI TUTTI I FILTRI PRIMA DI LEGGERE
+        # for name, ws in worksheets.items():
+        #     force_remove_all_filters(ws)
         
         dfs = {name: pd.DataFrame(ws.get_all_records()) for name, ws in worksheets.items()}
         
@@ -187,13 +184,10 @@ def save_prenotazione(prenotazioni: pd.DataFrame, new_prenotazione: Dict) -> pd.
         sh = gc.open_by_key(st.secrets["gsheet_id"])
         prenotazioni_w = sh.worksheet("prenotazioni")
 
-        # Prova a rimuovere il filtro solo con il metodo semplice (1 chiamata API)
-        try:
-            prenotazioni_w.clear_basic_filter()
-        except:
-            pass  # Ignora errori, continua comunque
+        # # RIMUOVI TUTTI I FILTRI PRIMA DI SALVARE
+        # force_remove_all_filters(prenotazioni_w)
 
-        # --- CALCOLA L'ULTIMA RIGA CON get_all_values() ---
+        # --- METODO ALTERNATIVO: CALCOLA L'ULTIMA RIGA CON get_all_values() ---
         # Questo metodo legge TUTTI i dati reali del foglio, ignorando completamente i filtri
         all_values = prenotazioni_w.get_all_values()
         next_row = len(all_values) + 1  # La prossima riga disponibile
@@ -233,7 +227,6 @@ def save_prenotazione(prenotazioni: pd.DataFrame, new_prenotazione: Dict) -> pd.
     except Exception as e:
         st.error(f"Errore critico durante il salvataggio della prenotazione: {e}")
         raise
-
 
 def render_login_page():
     st.title('Login Richieste Fascicoli')
