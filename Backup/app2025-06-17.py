@@ -223,6 +223,7 @@ def save_prenotazione(prenotazioni: pd.DataFrame, new_prenotazione: Dict) -> pd.
         raise
 
 
+
 def render_login_page():
     st.title('Login Richieste Fascicoli')
     try:
