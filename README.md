@@ -6,3 +6,4 @@ il contenuto del secrets.toml dentro advanced settings, in modo che streamlit ab
 
 
 attenzione compilare in maniera completa le nte altrimenti...bla bla bla
+##
