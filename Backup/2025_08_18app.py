@@ -166,17 +166,6 @@ def load_google_sheets_data() -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]
             if col in dfs['prenotazioni'].columns:
                 dfs['prenotazioni'][col] = dfs['prenotazioni'][col].astype(str).str.upper().map({'TRUE': True, 'FALSE': False, '': False}).fillna(False)
         
-        # CORREZIONE DATE: Converti le date con dayfirst=True per formato DD/MM/YYYY
-        date_columns = ['DATA_RICHIESTA', 'DATA_EVASIONE', 'DATA_RESTITUZIONE']
-        for col in date_columns:
-            if col in dfs['prenotazioni'].columns:
-                dfs['prenotazioni'][col] = pd.to_datetime(
-                    dfs['prenotazioni'][col], 
-                    format='%d/%m/%Y', 
-                    dayfirst=True,  # IMPORTANTE: forza il formato giorno/mese/anno
-                    errors='coerce'
-                )
-        
         return dfs['database'], dfs['prenotazioni'], dfs['gestori']
     
     except Exception as e:
@@ -206,11 +195,7 @@ def save_prenotazione(prenotazioni: pd.DataFrame, new_prenotazione: Dict) -> pd.
         # Preparazione dei dati per la scrittura
         if 'DATA_RICHIESTA' in new_prenotazione and new_prenotazione['DATA_RICHIESTA']:
             if not isinstance(new_prenotazione['DATA_RICHIESTA'], (datetime, pd.Timestamp)):
-                # CORREZIONE DATE: Se è una stringa, prova a parsarla con dayfirst=True
-                try:
-                    new_prenotazione['DATA_RICHIESTA'] = pd.to_datetime(new_prenotazione['DATA_RICHIESTA'], dayfirst=True)
-                except:
-                    new_prenotazione['DATA_RICHIESTA'] = pd.to_datetime(new_prenotazione['DATA_RICHIESTA'])
+                new_prenotazione['DATA_RICHIESTA'] = pd.to_datetime(new_prenotazione['DATA_RICHIESTA'])
             
             new_prenotazione['DATA_RICHIESTA'] = new_prenotazione['DATA_RICHIESTA'].strftime('%d/%m/%Y')
 
@@ -231,13 +216,7 @@ def save_prenotazione(prenotazioni: pd.DataFrame, new_prenotazione: Dict) -> pd.
         new_df = pd.DataFrame([new_prenotazione])
         updated_prenotazioni = pd.concat([prenotazioni, new_df], ignore_index=True)
         
-        # CORREZIONE DATE: Usa dayfirst=True anche nel parsing locale
-        updated_prenotazioni['DATA_RICHIESTA'] = pd.to_datetime(
-            updated_prenotazioni['DATA_RICHIESTA'], 
-            format='%d/%m/%Y', 
-            dayfirst=True,  # IMPORTANTE: forza il formato giorno/mese/anno
-            errors='coerce'
-        )
+        updated_prenotazioni['DATA_RICHIESTA'] = pd.to_datetime(updated_prenotazioni['DATA_RICHIESTA'], format='%d/%m/%Y', errors='coerce')
         updated_prenotazioni = updated_prenotazioni.sort_values(by='DATA_RICHIESTA', ascending=True, ignore_index=True)
         
         st.success("Prenotazione salvata con successo!")
@@ -431,7 +410,7 @@ def main():
             new_prenotazione = {
                                 'NDG': ndg_riga,
                                 'PORTAFOGLIO': portafoglio_riga,
-                                'DATA_RICHIESTA': datetime.now().strftime('%d/%m/%Y'),  # Mantieni il formato originale
+                                'DATA_RICHIESTA': datetime.now().strftime('%d/%m/%Y'),
                                 'MOTIVAZIONE_RICHIESTA': motivazione,
                                 'PRENOTATO': True,
                                 'RESTITUITO': False,
