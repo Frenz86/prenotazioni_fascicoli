@@ -235,18 +235,27 @@ def render_login_page():
         st.image(logo, width=600)
     except Exception:
         st.warning("Logo non trovato")
-    
+
     username = st.text_input('Username')
     password = st.text_input('Password', type='password')
-    
+
     if st.button('Login', type="primary"):
-        if username == st.secrets["USER"] and password == st.secrets["PASSW"]:
+        users = st.secrets["users"]  # Lista di dizionari
+        user_found = None
+
+        for u in users:
+            if u["username"] == username and u["password"] == password:
+                user_found = u
+                break
+
+        if user_found:
             st.session_state.user_state.update({
-                'username': username,
-                'password': password,
+                'username': user_found["username"],
+                'nome': user_found["nome"],
+                'role': user_found.get("role", "user"),
                 'logged_in': True
             })
-            st.success('Login effettuato con successo')
+            st.success(f'Benvenuto {user_found["nome"]}!')
             st.rerun()
         else:
             st.error('Username o password non validi')
@@ -255,7 +264,8 @@ def init_session_state():
     if 'user_state' not in st.session_state:
         st.session_state.user_state = {
                                         'username': '',
-                                        'password': '',
+                                        'nome': '',
+                                        'role': '',
                                         'logged_in': False
                                         }
     if 'search_clicked' not in st.session_state:
