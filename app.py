@@ -11,7 +11,7 @@ import time
 
 st.set_page_config(
                     page_title="FBS - Richieste Fascicoli",
-                    page_icon=Image.open("img/FBS_logo.png"),
+                    page_icon=Image.open("img/FBS.jpg"),
                     )
 
 st.markdown("""
@@ -254,7 +254,7 @@ def save_prenotazione(prenotazioni: pd.DataFrame, new_prenotazione: Dict) -> pd.
 def render_login_page():
     st.title('Login Richieste Fascicoli')
     try:
-        logo = Image.open('img/FBS_logo.jpg')
+        logo = Image.open('img/FBS.jpg')
         st.image(logo, width=600)
     except Exception:
         st.warning("Logo non trovato")
