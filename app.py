@@ -1,3 +1,5 @@
+#https://fbsnext-prenotazionefascicoli.streamlit.app/
+
 import streamlit as st
 import pandas as pd
 from datetime import datetime
@@ -9,7 +11,7 @@ import time
 
 st.set_page_config(
                     page_title="FBS - Richieste Fascicoli",
-                    page_icon=Image.open("img/FBS.jpg"),
+                    page_icon=Image.open("img/FBS_logo.png"),
                     )
 
 st.markdown("""
